@@ -7,7 +7,7 @@ $port = 8765
 if ($args.Count -ge 1) { $port = [int]$args[0] }
 
 Write-Host "gator player  http://127.0.0.1:$port/player/"
-Write-Host "ROMs (if present) served from /roms/ — never commit them."
-Write-Host "Ctrl+C to stop."
+Write-Host "ROMs (if present) served from /roms/ - never commit them."
+Write-Host "Press Ctrl+C to stop."
 
 python -m http.server $port
