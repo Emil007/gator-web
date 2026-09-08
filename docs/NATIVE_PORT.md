@@ -1,32 +1,28 @@
 # Native port: what we're proving
 
-**Question:** Can a late-80s Game Boy title (SM83 + MBC1 banks + MMIO) run as a *native* web app — not by emulating via an opcode interpreter — if we reverse-engineer / recompile control flow and only use the ROM as the program+asset blob at runtime?
+**Question:** Can a late-80s Game Boy title run as a *native* web app without an opcode-interpreter emulator?
 
-## Approach: static recompilation (1:1)
+## Approach: flow-based static recompilation (1:1)
 
-1. Classify ROM banks 0–2 as code, bank 3 as data (tiles).
-2. Translate each SM83 instruction into a JS statement with the same architectural effects.
-3. Drive those functions from `requestAnimationFrame`, with a small host PPU that displays VRAM/OAM.
-4. MBC1 `LD ($2000),A` becomes `romBank = a` inside `wr()`.
+1. Trace reachable SM83 from vectors / known entries (not a blind linear bank scan).
+2. Emit one JS function per instruction with identical architectural effects + M-cycle cost.
+3. Host runs **~70224 T-cycles per frame** (DMG), advancing DIV, TIMA, LY, STAT modes, and IRQs.
+4. Rare AOT holes: **one-instruction decode fallback** (bridge only — not the main loop).
+5. PPU draws VRAM/OAM the game itself writes. MBC1 bank select is `wr($2000)`.
 
-This is the same family of technique as other “PC ports” of console games: the **program is the original program**, expressed in another ISA, not a clean-room rewrite of “pinball-like” gameplay.
+## Current fidelity
 
-## What we are *not* doing
-
-- No EmulatorJS / Gambatte / mGBA core
-- No interpretive `while(true){ fetch; decode; execute }` loop over raw opcodes
-- ROM files are never committed
-
-## GB concepts → web
-
-| Game Boy | Native web |
-|----------|------------|
-| ROM banks | `Uint8Array` + bank index on `$2000` writes |
-| SM83 code | AOT JS functions in `generated/recompiled.js` |
-| VRAM / OAM / IO | `machine.js` buffers |
-| LCD | `ppu.js` → canvas |
-| Joypad `$FF00` | Keyboard → IO read |
-| VBlank IRQ | Host sets IF + vectors to `$0040` each frame (approximate) |
+| Area | Status |
+|------|--------|
+| Instruction semantics (AOT) | 1:1 for traced ops |
+| Code/data separation | Flow-based (much better than linear) |
+| Frame pacing | DMG 70224 T/frame |
+| DIV / TIMA / TAC | Yes |
+| LY / LYC / STAT modes + IRQs | Yes |
+| VBlank / STAT / Timer IRQs | Yes |
+| EI delay | Yes |
+| APU / serial link | Not yet |
+| Cycle-perfect PPU mid-scanline | Approximate modes only |
 
 ## Regenerate
 
@@ -34,4 +30,4 @@ This is the same family of technique as other “PC ports” of console games: t
 python scripts\recompile_to_js.py
 ```
 
-Requires the US retail `.gb` under `roms/` (gitignored).
+Needs US retail `.gb` in `roms/` (gitignored).
