@@ -312,7 +312,19 @@ def discover(rom: bytes) -> dict[tuple[int, int], tuple[int, str, int, int]]:
         if opb in UNCOND_CALL or opb in (0xC4, 0xCC, 0xD4, 0xDC):
             add(cur_bank if nn >= 0x4000 else 0, nn)
             if opb == 0xCD and nn == 0x10FB:
-                # jump table: don't fall through into pointer words
+                # Jump table: words after CALL are targets (not code)
+                p = file_off(bank, nxt)
+                for _ in range(40):
+                    if p + 1 >= len(rom):
+                        break
+                    tgt = rom[p] | (rom[p + 1] << 8)
+                    p += 2
+                    if 0x0100 <= tgt < 0x4000:
+                        add(0, tgt)
+                    elif 0x4000 <= tgt < 0x8000:
+                        add(cur_bank if cur_bank else 1, tgt)
+                    else:
+                        break
                 continue
             add(bank, nxt)
             continue

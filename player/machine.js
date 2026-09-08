@@ -1,4 +1,6 @@
-/** GB machine — memory, SM83 helpers, timers, LY/STAT, interrupt dispatch, decode fallback. */
+/** GB machine — memory, SM83 helpers, timers, LY/STAT, interrupt dispatch. */
+
+import { createDecodeStep } from "./decode.js";
 
 const CYCLES_PER_LINE = 456;
 const LINES_PER_FRAME = 154;
@@ -73,7 +75,7 @@ export function createMachine(romBytes) {
   io[0x05] = 0x00;
   io[0x06] = 0x00;
   io[0x07] = 0xf8;
-  io[0x0f] = 0xe1;
+  io[0x0f] = 0xe0;
   io[0x40] = 0x91;
   io[0x41] = 0x85;
   io[0x42] = 0x00;
@@ -151,6 +153,7 @@ export function createMachine(romBytes) {
 
     const lcdOn = io[0x40] & 0x80;
     if (!lcdOn) {
+      // LY frozen at 0 while LCD off, but DIV/timer still run (handled above)
       ly = 0;
       io[0x44] = 0;
       lineCycles = 0;
@@ -582,175 +585,7 @@ export function createMachine(romBytes) {
     return 0;
   }
 
-  /** One-instruction decode fallback for AOT holes (same semantics). */
-  function decodeStep() {
-    const bank = r.pc < 0x4000 ? 0 : romBank || 1;
-    const op = rd(r.pc);
-    let CTRL_JP = -1;
-    let CTRL_HALT = 0;
-    let m = 1;
-    const next = (sz) => (r.pc + sz) & 0xffff;
-
-    if (op === 0xcb) {
-      const cb = rd((r.pc + 1) & 0xffff);
-      r.pc = next(2);
-      // minimal subset via existing helpers where possible
-      const regGet = [
-        () => r.b,
-        () => r.c,
-        () => r.d,
-        () => r.e,
-        () => r.h,
-        () => r.l,
-        () => rd(r.hl),
-        () => r.a,
-      ];
-      const regSet = [
-        (v) => (r.b = v),
-        (v) => (r.c = v),
-        (v) => (r.d = v),
-        (v) => (r.e = v),
-        (v) => (r.h = v),
-        (v) => (r.l = v),
-        (v) => wr(r.hl, v),
-        (v) => (r.a = v),
-      ];
-      const ri = cb & 7;
-      const group = cb >> 3;
-      if (group < 8) {
-        const fns = [rlc, rrc, rl, rr, sla, sra, swap, srl];
-        regSet[ri](fns[group](regGet[ri]()));
-        m = ri === 6 ? 4 : 2;
-      } else if (group < 16) {
-        bit(group - 8, regGet[ri]());
-        m = ri === 6 ? 3 : 2;
-      } else if (group < 24) {
-        regSet[ri](res(group - 16, regGet[ri]()));
-        m = ri === 6 ? 4 : 2;
-      } else {
-        regSet[ri](set(group - 24, regGet[ri]()));
-        m = ri === 6 ? 4 : 2;
-      }
-      return m;
-    }
-
-    // Common ops only — enough to bridge AOT gaps
-    const n = rd(next(1));
-    const nn = n | (rd(next(2)) << 8);
-    switch (op) {
-      case 0x00:
-        r.pc = next(1);
-        m = 1;
-        break;
-      case 0xc3:
-        CTRL_JP = nn;
-        m = 4;
-        break;
-      case 0xc9:
-        CTRL_JP = pop16();
-        m = 4;
-        break;
-      case 0xcd:
-        push16(next(3));
-        CTRL_JP = nn;
-        m = 6;
-        break;
-      case 0x18: {
-        const off = n < 0x80 ? n : n - 0x100;
-        CTRL_JP = (r.pc + 2 + off) & 0xffff;
-        m = 3;
-        break;
-      }
-      case 0x20:
-      case 0x28:
-      case 0x30:
-      case 0x38: {
-        const off = n < 0x80 ? n : n - 0x100;
-        const take =
-          (op === 0x20 && !r.fz) ||
-          (op === 0x28 && r.fz) ||
-          (op === 0x30 && !r.fc) ||
-          (op === 0x38 && r.fc);
-        if (take) CTRL_JP = (r.pc + 2 + off) & 0xffff;
-        else r.pc = next(2);
-        m = 3;
-        break;
-      }
-      case 0x3e:
-        r.a = n;
-        r.pc = next(2);
-        m = 2;
-        break;
-      case 0x21:
-        r.hl = nn;
-        r.pc = next(3);
-        m = 3;
-        break;
-      case 0x11:
-        r.de = nn;
-        r.pc = next(3);
-        m = 3;
-        break;
-      case 0x01:
-        r.bc = nn;
-        r.pc = next(3);
-        m = 3;
-        break;
-      case 0x31:
-        r.sp = nn;
-        r.pc = next(3);
-        m = 3;
-        break;
-      case 0xea:
-        wr(nn, r.a);
-        r.pc = next(3);
-        m = 4;
-        break;
-      case 0xfa:
-        r.a = rd(nn);
-        r.pc = next(3);
-        m = 4;
-        break;
-      case 0xe0:
-        wr(0xff00 + n, r.a);
-        r.pc = next(2);
-        m = 3;
-        break;
-      case 0xf0:
-        r.a = rd(0xff00 + n);
-        r.pc = next(2);
-        m = 3;
-        break;
-      case 0x76:
-        CTRL_HALT = 1;
-        r.pc = next(1);
-        m = 1;
-        break;
-      case 0xf3:
-        r.ime = 0;
-        r.pc = next(1);
-        m = 1;
-        break;
-      case 0xfb:
-        ei();
-        r.pc = next(1);
-        m = 1;
-        break;
-      default:
-        // skip 1 byte to avoid hard lock
-        r.pc = next(1);
-        m = 1;
-        break;
-    }
-    if (CTRL_JP >= 0) r.pc = CTRL_JP & 0xffff;
-    if (CTRL_HALT) r.halted = 1;
-    return m;
-  }
-
-  // Patch EI in recompiled path: FB sets ime immediately in AOT; improve via wr hook not needed
-  // Provide setIme for host if needed
-
-  return {
+  const api = {
     r,
     rd,
     wr,
@@ -794,7 +629,6 @@ export function createMachine(romBytes) {
     setJoypad,
     advanceDots,
     checkInterrupts,
-    decodeStep,
     getLY: () => ly,
     vram,
     oam,
@@ -803,4 +637,6 @@ export function createMachine(romBytes) {
     hram,
     getRomBank: () => romBank,
   };
+  api.decodeStep = createDecodeStep(api);
+  return api;
 }
