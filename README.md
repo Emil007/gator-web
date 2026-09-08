@@ -1,44 +1,43 @@
 # gator-web
 
-Browser Game Boy player for local ROMs. **You supply the ROM** — nothing is uploaded or shipped in this repo.
+**Native port lab** — can a banked Game Boy title run on the web *without* emulating SM83/MBC1?
 
-Built for quickly playing dumps you already own (e.g. Pinball / ’Gator variants) via [EmulatorJS](https://emulatorjs.org/).
+Private research repo. You supply a `.gb` you own; it is used as an **asset/data pack only**. Game code here is JavaScript.
 
-## Play locally
+## Thesis
+
+Banks, VBlank, and `$FF**` registers are platform glue. Algorithms, tables, and tiles are portable. See [`docs/NATIVE_PORT.md`](docs/NATIVE_PORT.md).
+
+## Run
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\serve_player.ps1
 ```
 
-Open http://127.0.0.1:8765/player/
+Open http://127.0.0.1:8765/player/ → load a ROM → native canvas loop (no EmulatorJS).
 
-- Drop a `.gb` / choose a file, or
-- If you keep ROMs in a sibling `roms/` folder when serving from a parent project, quick-load buttons appear
+## What’s implemented
 
-## Play on GitHub Pages
+- ROM load (file / local `roms/` when serving from repo root)
+- Header parse + bank slices
+- 2bpp tile decode from bank 3 → atlas
+- `ASCII+0x1F` menu string decode (from RE)
+- Attract → menu → **pinball table POC** (native physics; ROM tiles for backdrop)
+- State modes inspired by `$FFBD` jump table (not cycle-accurate yet)
 
-After Pages is enabled for this repo (deploy from `main`, folder `/`), open:
+## What’s next
 
-https://emil007.github.io/gator-web/player/
-
-Use **Choose ROM** / drag-and-drop. Quick-load from `roms/` is local-server only.
-
-## Controls (EmulatorJS defaults)
-
-| Button | Key |
-|--------|-----|
-| D-Pad | Arrows |
-| A | X |
-| B | Z |
-| Start | Enter |
-| Select | Shift |
-
-Remap in the emulator menu. Save states stay in this browser origin.
+- Port real collision / object tables from the matching disassembly
+- BG map reconstruction for authentic tables
+- Sound via Web Audio from bank 1 driver RE
+- Side-by-side compare vs emulator as reference only
 
 ## Layout
 
 ```
-player/                 web UI + EmulatorJS loader
-scripts/serve_player.ps1
-index.html              redirects → player/
+player/          native web runtime (ES modules)
+docs/            port architecture notes
+scripts/         local static server
 ```
+
+ROMs are gitignored. Never commit dumps.

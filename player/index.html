@@ -3,62 +3,76 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>gator player</title>
+  <title>gator — native port lab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,700;1,9..40,500&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="shell">
     <header class="brand">
       <p class="brand-mark">gator</p>
-      <p class="brand-sub">local Game Boy player · supply your own ROM</p>
+      <p class="brand-sub">native port lab · no emulator · ROM = assets / data only</p>
     </header>
 
     <main class="stage">
-      <div id="drop" class="drop" hidden>
+      <div id="boot" class="boot">
         <div class="lcd-bezel">
           <div class="lcd-glass">
-            <p class="lcd-hint">Drop a <code>.gb</code> here</p>
-            <p class="lcd-or">or</p>
+            <p class="lcd-hint">Load a <code>.gb</code> dump you own</p>
+            <p class="lcd-or">tiles + tables come from the ROM; game code runs as JS</p>
             <label class="file-btn">
               Choose ROM
-              <input id="file" type="file" accept=".gb,.gbc,.zip,application/octet-stream" />
+              <input id="file" type="file" accept=".gb,.gbc,application/octet-stream" />
             </label>
             <div id="quick" class="quick" hidden>
-              <p class="quick-label">From <code>roms/</code> (local server)</p>
+              <p class="quick-label">Local <code>roms/</code></p>
               <div id="quick-buttons" class="quick-buttons"></div>
             </div>
           </div>
         </div>
-        <p class="note">Nothing is uploaded. The ROM stays in this browser tab.</p>
       </div>
 
-      <div id="play" class="play" hidden>
+      <div id="app" class="app" hidden>
         <div class="lcd-bezel playing">
-          <div id="game" class="game"></div>
+          <canvas id="screen" width="160" height="144" aria-label="Game screen"></canvas>
         </div>
         <div class="toolbar">
-          <p id="rom-name" class="rom-name"></p>
-          <button type="button" id="eject" class="eject">Eject</button>
+          <p id="status" class="rom-name"></p>
+          <div class="toolbar-actions">
+            <button type="button" id="mode-menu" class="ghost">Menu</button>
+            <button type="button" id="mode-play" class="ghost">Table</button>
+            <button type="button" id="eject" class="eject">Eject</button>
+          </div>
         </div>
       </div>
     </main>
 
-    <aside class="controls">
-      <h2>Controls</h2>
-      <dl>
-        <div><dt>D-Pad</dt><dd>Arrow keys</dd></div>
-        <div><dt>A</dt><dd>X</dd></div>
-        <div><dt>B</dt><dd>Z</dd></div>
-        <div><dt>Start</dt><dd>Enter</dd></div>
-        <div><dt>Select</dt><dd>Shift</dd></div>
-      </dl>
-      <p class="fine">EmulatorJS (gambatte). Remap keys in the emulator menu. Saves stay in this browser origin only.</p>
+    <aside class="panel">
+      <section>
+        <h2>Experiment</h2>
+        <p class="body">
+          This is not EmulatorJS. After you load a ROM, JS decodes 2bpp tiles and
+          known string tables, then runs a native frame loop + pinball POC.
+          Banking is a slice index, not an MBC chip.
+        </p>
+      </section>
+      <section>
+        <h2>Controls (table mode)</h2>
+        <dl>
+          <div><dt>Left flip</dt><dd>Z / ←</dd></div>
+          <div><dt>Right flip</dt><dd>X / → / /</dd></div>
+          <div><dt>Nudge</dt><dd>Space</dd></div>
+        </dl>
+      </section>
+      <section>
+        <h2>Log</h2>
+        <pre id="log" class="log"></pre>
+      </section>
     </aside>
   </div>
 
-  <script src="app.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

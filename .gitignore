@@ -2,11 +2,10 @@
 roms/*
 !roms/README.md
 
-# Local reverse-engineering / disassembly (not part of gator-web)
+# Local matching disassembly (optional sibling worktree; not required to run player)
 disassembly/
 disassembly-jp/
 disassembly-beta/
-docs/
 symbols/
 tools/
 scripts/generate_sym.py
@@ -14,6 +13,7 @@ scripts/disassemble_all.py
 scripts/build.ps1
 scripts/setup_tools.ps1
 analyze_roms.py
+decode_text.js
 decode_text.py
 map_systems.py
 re_deep.py
@@ -31,5 +31,3 @@ __pycache__/
 *.map
 *.gb
 *.gbc
-*.sym
-!roms/README.md
