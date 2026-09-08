@@ -41,8 +41,8 @@
         <div class="toolbar">
           <p id="status" class="rom-name"></p>
           <div class="toolbar-actions">
-            <button type="button" id="mode-menu" class="ghost">Slower</button>
-            <button type="button" id="mode-play" class="ghost">Faster</button>
+            <button type="button" id="mode-menu" class="ghost">Half speed</button>
+            <button type="button" id="mode-play" class="ghost">Double speed</button>
             <button type="button" id="eject" class="eject">Eject</button>
           </div>
         </div>
@@ -53,10 +53,10 @@
       <section>
         <h2>How this is 1:1</h2>
         <p class="body">
-          <code>scripts/recompile_to_js.py</code> translates each SM83 instruction in banks 0–2
-          into a JS function with the same semantics (registers, flags, banks, memory).
-          That is static recompilation — not EmulatorJS and not a fetch/decode/execute loop.
-          Bank 3 stays ROM data (tiles) read by the game itself.
+          <code>scripts/recompile_to_js.py</code> flow-traces from entry points (not a blind
+          linear pass), so data isn’t executed as code. Each op returns M-cycles; the host
+          runs ~70224 T-cycles per display frame with DIV, TIMA, LY/STAT, and interrupts.
+          Rare AOT holes use a one-instruction decode fallback.
         </p>
       </section>
       <section>

@@ -1,5 +1,5 @@
 import { loadRomFromFile, loadRomFromUrl } from "./rom.js";
-import { createMachine } from "./machine.js";
+import { createMachine, CYCLES_PER_FRAME } from "./machine.js";
 import { renderFrame } from "./ppu.js";
 import { bindRecompiled } from "./generated/recompiled.js";
 
@@ -23,8 +23,9 @@ const quickButtons = document.getElementById("quick-buttons");
 let machine = null;
 let cpu = null;
 let raf = 0;
-let stepsPerFrame = 20000;
+let speed = 1; // 1 = realtime (~60 Hz frames)
 let frames = 0;
+let fallbackHits = 0;
 
 const keys = new Set();
 window.addEventListener("keydown", (e) => {
@@ -81,51 +82,56 @@ function pollInput() {
   });
 }
 
-function serviceInterrupts() {
-  // Minimal IE/IF: raise VBlank each frame when LCD on
-  const ie = machine.hram ? 0 : 0;
-  // IE is at 0xffff — stored in machine; read via rd
-  // Set IF VBlank bit
-  const ifReg = machine.rd(0xff0f) | 0x01;
-  machine.wr(0xff0f, ifReg);
-  const ieReg = machine.rd(0xffff);
-  if (machine.r.ime && (ifReg & ieReg & 0x01)) {
-    machine.r.ime = 0;
-    machine.r.halted = 0;
-    machine.wr(0xff0f, ifReg & ~0x01);
-    machine.push16(machine.r.pc);
-    machine.r.pc = 0x0040;
+/** Run one DMG frame (~70224 T-cycles) of recompiled code. */
+function runFrameCycles() {
+  let cycles = 0;
+  const target = CYCLES_PER_FRAME * speed;
+  let steps = 0;
+  const maxSteps = 500000 * speed;
+
+  while (cycles < target && steps < maxSteps) {
+    const irqCyc = machine.checkInterrupts();
+    if (irqCyc) {
+      cycles += irqCyc * 4;
+      machine.advanceDots(irqCyc * 4);
+    }
+
+    if (machine.r.halted) {
+      // burn cycles until interrupt wakes
+      machine.advanceDots(4);
+      cycles += 4;
+      steps++;
+      continue;
+    }
+
+    const pcBefore = machine.r.pc;
+    const bankBefore = machine.getRomBank();
+    const m = cpu.step() || 1;
+    // detect fallback: step always returns m-cycles now
+    cycles += m * 4;
+    machine.advanceDots(m * 4);
+    steps++;
+
+    // rough fallback counter: if PC landed on unmapped often
+    if (m === 1 && machine.r.pc === ((pcBefore + 1) & 0xffff)) {
+      // could be nop or skip — ignore
+    }
   }
+  return { cycles, steps };
 }
 
 function frame() {
   if (!machine || !cpu) return;
   pollInput();
-
-  // Advance LY through a frame while executing — unblocks wait loops
-  let steps = 0;
-  const budget = stepsPerFrame;
-  while (steps < budget) {
-    if (machine.r.halted) {
-      machine.r.halted = 0;
-      break;
-    }
-    // Simulate LY periodically
-    if ((steps & 0x3f) === 0) machine.tickLY();
-    const ok = cpu.step();
-    steps++;
-    if (!ok && steps > 100) {
-      // unmapped stretch — still nudge LY
-      machine.tickLY();
-    }
-  }
-
-  serviceInterrupts();
+  const { cycles, steps } = runFrameCycles();
   renderFrame(machine, frameBuf);
   ctx.putImageData(frameBuf, 0, 0);
   frames++;
-  if ((frames & 0x3f) === 0) {
-    status.textContent = `${status.dataset.name} · pc=$${machine.r.pc.toString(16).padStart(4, "0")} bank=${machine.getRomBank()} ops=${cpu.count}`;
+  if ((frames & 0x1f) === 0) {
+    status.textContent =
+      `${status.dataset.name} · pc=$${machine.r.pc.toString(16).padStart(4, "0")}` +
+      ` bank=${machine.getRomBank()} ly=${machine.getLY()}` +
+      ` · ${steps}|${cycles}t · ${cpu.count}ops · x${speed}`;
   }
   raf = requestAnimationFrame(frame);
 }
@@ -142,12 +148,13 @@ async function startRom(bytes, name) {
   machine = createMachine(bytes);
   machine.r.pc = 0x0100;
   cpu = bindRecompiled(machine);
+  fallbackHits = 0;
   log(
-    `1:1 static recompile runtime\n` +
-      `ROM ${name} (${bytes.length} bytes)\n` +
-      `recompiled ops: ${cpu.count}\n` +
-      `entry $0100 — original SM83 semantics as JS, not an interpreter loop over opcodes\n` +
-      `PPU renders VRAM/OAM the game itself writes`
+    `1:1 flow-based static recompile\n` +
+      `ROM ${name}\n` +
+      `AOT ops: ${cpu.count}\n` +
+      `scheduler: ${CYCLES_PER_FRAME} T-cycles/frame (DMG), DIV/TIMA/LY/STAT/IRQs\n` +
+      `holes: one-instruction decode fallback (not a full interpreter loop)`
   );
   showApp(name);
   frame();
@@ -167,12 +174,12 @@ fileInput.addEventListener("change", () => {
 
 document.getElementById("eject").addEventListener("click", () => location.reload());
 document.getElementById("mode-menu")?.addEventListener("click", () => {
-  stepsPerFrame = Math.max(2000, stepsPerFrame / 2);
-  log(`steps/frame → ${stepsPerFrame}`);
+  speed = Math.max(0.25, speed / 2);
+  log(`speed → ${speed}x (${CYCLES_PER_FRAME * speed} T/frame)`);
 });
 document.getElementById("mode-play")?.addEventListener("click", () => {
-  stepsPerFrame = Math.min(200000, stepsPerFrame * 2);
-  log(`steps/frame → ${stepsPerFrame}`);
+  speed = Math.min(4, speed * 2);
+  log(`speed → ${speed}x (${CYCLES_PER_FRAME * speed} T/frame)`);
 });
 
 probeQuick();

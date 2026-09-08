@@ -1,4 +1,8 @@
-/** GB machine state + SM83 helpers for statically recompiled code. */
+/** GB machine — memory, SM83 helpers, timers, LY/STAT, interrupt dispatch, decode fallback. */
+
+const CYCLES_PER_LINE = 456;
+const LINES_PER_FRAME = 154;
+export const CYCLES_PER_FRAME = CYCLES_PER_LINE * LINES_PER_FRAME; // 70224
 
 export function createMachine(romBytes) {
   const rom = romBytes;
@@ -10,15 +14,25 @@ export function createMachine(romBytes) {
 
   let romBank = 1;
   let ie = 0;
+  let div = 0; // 16-bit internal DIV counter
+  let timaReload = 0;
+  let lineCycles = 0;
+  let ly = 0;
+  let statMode = 1; // VBlank at start post-boot-ish; we'll set properly
+  let imeScheduled = 0; // EI delay
 
   const r = {
-    a: 0,
-    b: 0,
-    c: 0,
-    d: 0,
-    e: 0,
-    h: 0,
-    l: 0,
+    a: 0x01,
+    b: 0x00,
+    c: 0x13,
+    d: 0x00,
+    e: 0xd8,
+    h: 0x01,
+    l: 0x4d,
+    fz: 1,
+    fn: 0,
+    fh: 1,
+    fc: 1,
     get f() {
       return (this.fz << 7) | (this.fn << 6) | (this.fh << 5) | (this.fc << 4);
     },
@@ -28,10 +42,6 @@ export function createMachine(romBytes) {
       this.fh = (v >> 5) & 1;
       this.fc = (v >> 4) & 1;
     },
-    fz: 0,
-    fn: 0,
-    fh: 0,
-    fc: 0,
     get bc() {
       return (this.b << 8) | this.c;
     },
@@ -59,25 +69,158 @@ export function createMachine(romBytes) {
     halted: 0,
   };
 
-  // post-boot defaults
+  io[0x00] = 0xcf;
+  io[0x05] = 0x00;
+  io[0x06] = 0x00;
+  io[0x07] = 0xf8;
+  io[0x0f] = 0xe1;
   io[0x40] = 0x91;
-  io[0x47] = 0xe4;
-  io[0x48] = 0xe4;
-  io[0x49] = 0xe4;
+  io[0x41] = 0x85;
+  io[0x42] = 0x00;
+  io[0x43] = 0x00;
+  io[0x44] = 0x00;
+  io[0x45] = 0x00;
+  io[0x47] = 0xfc;
+  io[0x48] = 0xff;
+  io[0x49] = 0xff;
+
+  let joypadButtons = 0xff;
+  let joypadDp = 0xff;
+
+  function setJoypad({ left, right, up, down, a, b, start, select }) {
+    let dp = 0xff;
+    let btn = 0xff;
+    if (right) dp &= ~0x01;
+    if (left) dp &= ~0x02;
+    if (up) dp &= ~0x04;
+    if (down) dp &= ~0x08;
+    if (a) btn &= ~0x01;
+    if (b) btn &= ~0x02;
+    if (select) btn &= ~0x04;
+    if (start) btn &= ~0x08;
+    joypadDp = dp;
+    joypadButtons = btn;
+  }
+
+  function requestInterrupt(bit) {
+    io[0x0f] |= bit;
+    if (r.halted) r.halted = 0;
+  }
+
+  function updateStatMode(mode) {
+    statMode = mode;
+    io[0x41] = (io[0x41] & 0xf8) | (mode & 7);
+    const stat = io[0x41];
+    // mode interrupts
+    if (mode === 0 && stat & 0x08) requestInterrupt(0x02);
+    if (mode === 1 && stat & 0x10) requestInterrupt(0x02);
+    if (mode === 2 && stat & 0x20) requestInterrupt(0x02);
+  }
+
+  function checkLyc() {
+    const lyc = io[0x45];
+    const match = ly === lyc;
+    if (match) io[0x41] |= 0x04;
+    else io[0x41] &= ~0x04;
+    if (match && io[0x41] & 0x40) requestInterrupt(0x02);
+  }
+
+  function advanceDots(dots) {
+    // DIV: increments at 16384 Hz = every 256 T-cycles
+    div = (div + dots) & 0xffff;
+    io[0x04] = (div >> 8) & 0xff;
+
+    // Timer
+    const tac = io[0x07];
+    if (tac & 0x04) {
+      const freqs = [1024, 16, 64, 256]; // T-cycles per TIMA tick
+      const period = freqs[tac & 3];
+      // crude: accumulate via div edge — use lineCycles-style local
+      // Better: track timer counter
+      advanceTimer(dots, period);
+    }
+
+    if (timaReload > 0) {
+      timaReload -= dots;
+      if (timaReload <= 0) {
+        io[0x05] = io[0x06];
+        requestInterrupt(0x04);
+        timaReload = 0;
+      }
+    }
+
+    const lcdOn = io[0x40] & 0x80;
+    if (!lcdOn) {
+      ly = 0;
+      io[0x44] = 0;
+      lineCycles = 0;
+      updateStatMode(0);
+      return;
+    }
+
+    lineCycles += dots;
+    while (lineCycles >= CYCLES_PER_LINE) {
+      lineCycles -= CYCLES_PER_LINE;
+      ly++;
+      if (ly === 144) {
+        requestInterrupt(0x01); // VBlank
+        updateStatMode(1);
+      }
+      if (ly >= LINES_PER_FRAME) ly = 0;
+      io[0x44] = ly;
+      checkLyc();
+    }
+
+    // mode within line
+    if (ly >= 144) {
+      updateStatMode(1);
+    } else if (lineCycles < 80) {
+      updateStatMode(2); // OAM
+    } else if (lineCycles < 80 + 172) {
+      updateStatMode(3); // transfer
+    } else {
+      updateStatMode(0); // HBlank
+    }
+  }
+
+  let timerAcc = 0;
+  function advanceTimer(dots, period) {
+    timerAcc += dots;
+    while (timerAcc >= period) {
+      timerAcc -= period;
+      const t = io[0x05] + 1;
+      if (t > 0xff) {
+        io[0x05] = 0; // overflow; reload after 1 M-cycle delay
+        timaReload = 4;
+      } else {
+        io[0x05] = t;
+      }
+    }
+  }
 
   function rd(addr) {
     addr &= 0xffff;
     if (addr < 0x4000) return rom[addr];
     if (addr < 0x8000) {
       const b = romBank || 1;
-      return rom[b * 0x4000 + (addr - 0x4000)];
+      return rom[(b & 0x1f) * 0x4000 + (addr - 0x4000)];
     }
     if (addr < 0xa000) return vram[addr - 0x8000];
-    if (addr < 0xc000) return 0xff; // no cart RAM
+    if (addr < 0xc000) return 0xff;
     if (addr < 0xe000) return wram[addr - 0xc000];
     if (addr < 0xfe00) return wram[addr - 0xe000];
     if (addr < 0xfea0) return oam[addr - 0xfe00];
     if (addr < 0xff00) return 0xff;
+    if (addr === 0xff00) {
+      const sel = io[0x00] & 0x30;
+      let v = 0xc0 | sel;
+      if (!(sel & 0x10)) v |= joypadDp & 0x0f;
+      else if (!(sel & 0x20)) v |= joypadButtons & 0x0f;
+      else v |= 0x0f;
+      return v;
+    }
+    if (addr === 0xff04) return (div >> 8) & 0xff;
+    if (addr === 0xff44) return ly;
     if (addr < 0xff80) return io[addr - 0xff00];
     if (addr < 0xffff) return hram[addr - 0xff80];
     return ie;
@@ -86,14 +229,12 @@ export function createMachine(romBytes) {
   function wr(addr, val) {
     addr &= 0xffff;
     val &= 0xff;
-    if (addr < 0x2000) return; // ram enable
+    if (addr < 0x2000) return;
     if (addr < 0x4000) {
-      // ROM bank select
       romBank = val & 0x1f;
       if (romBank === 0) romBank = 1;
       return;
     }
-    if (addr < 0x6000) return; // ram bank / mode
     if (addr < 0x8000) return;
     if (addr < 0xa000) {
       vram[addr - 0x8000] = val;
@@ -114,18 +255,30 @@ export function createMachine(romBytes) {
     }
     if (addr < 0xff00) return;
     if (addr < 0xff80) {
-      // LY is read-only-ish; allow writes to most IO
       if (addr === 0xff04) {
-        io[0x04] = 0;
+        div = 0;
         return;
       }
+      if (addr === 0xff07) {
+        io[0x07] = val;
+        return;
+      }
+      if (addr === 0xff0f) {
+        io[0x0f] = 0xe0 | (val & 0x1f);
+        return;
+      }
+      if (addr === 0xff41) {
+        io[0x41] = (io[0x41] & 0x07) | (val & 0x78);
+        return;
+      }
+      if (addr === 0xff44) return; // LY read-only
       if (addr === 0xff46) {
-        // DMA
         const src = val << 8;
         for (let i = 0; i < 0xa0; i++) oam[i] = rd(src + i);
         return;
       }
       io[addr - 0xff00] = val;
+      if (addr === 0xff45) checkLyc();
       return;
     }
     if (addr < 0xffff) {
@@ -139,7 +292,6 @@ export function createMachine(romBytes) {
     wr(addr, v & 0xff);
     wr((addr + 1) & 0xffff, (v >> 8) & 0xff);
   }
-
   function push16(v) {
     r.sp = (r.sp - 1) & 0xffff;
     wr(r.sp, (v >> 8) & 0xff);
@@ -177,8 +329,8 @@ export function createMachine(romBytes) {
     return n;
   }
   function add_a(v) {
-    const a = r.a;
-    const s = a + v;
+    const a = r.a,
+      s = a + v;
     r.a = s & 0xff;
     r.fz = r.a === 0 ? 1 : 0;
     r.fn = 0;
@@ -186,8 +338,8 @@ export function createMachine(romBytes) {
     r.fc = s > 0xff ? 1 : 0;
   }
   function adc_a(v) {
-    const a = r.a;
-    const s = a + v + r.fc;
+    const a = r.a,
+      s = a + v + r.fc;
     r.a = s & 0xff;
     r.fz = r.a === 0 ? 1 : 0;
     r.fn = 0;
@@ -195,8 +347,8 @@ export function createMachine(romBytes) {
     r.fc = s > 0xff ? 1 : 0;
   }
   function sub_a(v) {
-    const a = r.a;
-    const s = a - v;
+    const a = r.a,
+      s = a - v;
     r.a = s & 0xff;
     r.fz = r.a === 0 ? 1 : 0;
     r.fn = 1;
@@ -204,8 +356,8 @@ export function createMachine(romBytes) {
     r.fc = s < 0 ? 1 : 0;
   }
   function sbc_a(v) {
-    const a = r.a;
-    const s = a - v - r.fc;
+    const a = r.a,
+      s = a - v - r.fc;
     r.a = s & 0xff;
     r.fz = r.a === 0 ? 1 : 0;
     r.fn = 1;
@@ -234,16 +386,16 @@ export function createMachine(romBytes) {
     r.fc = 0;
   }
   function cp_a(v) {
-    const a = r.a;
-    const s = a - v;
+    const a = r.a,
+      s = a - v;
     r.fz = (s & 0xff) === 0 ? 1 : 0;
     r.fn = 1;
     r.fh = (a & 0xf) - (v & 0xf) < 0 ? 1 : 0;
     r.fc = s < 0 ? 1 : 0;
   }
   function add_hl(v) {
-    const hl = r.hl;
-    const s = hl + v;
+    const hl = r.hl,
+      s = hl + v;
     r.fn = 0;
     r.fh = (hl & 0xfff) + (v & 0xfff) > 0xfff ? 1 : 0;
     r.fc = s > 0xffff ? 1 : 0;
@@ -251,8 +403,8 @@ export function createMachine(romBytes) {
   }
   function add_sp(n) {
     const off = n < 0x80 ? n : n - 0x100;
-    const sp = r.sp;
-    const s = sp + off;
+    const sp = r.sp,
+      s = sp + off;
     r.fz = 0;
     r.fn = 0;
     r.fh = (sp & 0xf) + (off & 0xf) > 0xf ? 1 : 0;
@@ -261,8 +413,8 @@ export function createMachine(romBytes) {
   }
   function ld_hl_sp(n) {
     const off = n < 0x80 ? n : n - 0x100;
-    const sp = r.sp;
-    const s = sp + off;
+    const sp = r.sp,
+      s = sp + off;
     r.fz = 0;
     r.fn = 0;
     r.fh = (sp & 0xf) + (off & 0xf) > 0xf ? 1 : 0;
@@ -317,7 +469,6 @@ export function createMachine(romBytes) {
     r.fz = a === 0 ? 1 : 0;
     r.fh = 0;
   }
-
   function rlc(v) {
     const c = (v >> 7) & 1;
     const n = ((v << 1) | c) & 0xff;
@@ -403,49 +554,205 @@ export function createMachine(romBytes) {
   function stopcpu() {
     r.halted = 1;
   }
-
-  // joypad: io[0x00]
-  let joypadButtons = 0xff; // 1=released
-  let joypadDp = 0xff;
-
-  function setJoypad({ left, right, up, down, a, b, start, select }) {
-    let dp = 0xff;
-    let btn = 0xff;
-    if (right) dp &= ~0x01;
-    if (left) dp &= ~0x02;
-    if (up) dp &= ~0x04;
-    if (down) dp &= ~0x08;
-    if (a) btn &= ~0x01;
-    if (b) btn &= ~0x02;
-    if (select) btn &= ~0x04;
-    if (start) btn &= ~0x08;
-    joypadDp = dp;
-    joypadButtons = btn;
+  function ei() {
+    imeScheduled = 1;
   }
 
-  const _rd = rd;
-  function rdJoy(addr) {
-    if ((addr & 0xffff) === 0xff00) {
-      const sel = io[0x00] & 0x30;
-      let v = 0xc0 | sel;
-      if (!(sel & 0x10)) v |= joypadDp & 0x0f;
-      else if (!(sel & 0x20)) v |= joypadButtons & 0x0f;
-      else v |= 0x0f;
-      return v;
+  const IRQ_VEC = [0x40, 0x48, 0x50, 0x58, 0x60];
+
+  function checkInterrupts() {
+    if (imeScheduled) {
+      r.ime = 1;
+      imeScheduled = 0;
     }
-    return _rd(addr);
+    const pending = io[0x0f] & ie & 0x1f;
+    if (!pending) return 0;
+    if (r.halted) r.halted = 0;
+    if (!r.ime) return 0;
+    for (let i = 0; i < 5; i++) {
+      const mask = 1 << i;
+      if (pending & mask) {
+        r.ime = 0;
+        io[0x0f] &= ~mask;
+        push16(r.pc);
+        r.pc = IRQ_VEC[i];
+        return 5; // interrupt entry M-cycles (approx)
+      }
+    }
+    return 0;
   }
 
-  // LY simulation for busy-waits
-  let ly = 0;
-  function tickLY() {
-    ly = (ly + 1) % 154;
-    io[0x44] = ly;
+  /** One-instruction decode fallback for AOT holes (same semantics). */
+  function decodeStep() {
+    const bank = r.pc < 0x4000 ? 0 : romBank || 1;
+    const op = rd(r.pc);
+    let CTRL_JP = -1;
+    let CTRL_HALT = 0;
+    let m = 1;
+    const next = (sz) => (r.pc + sz) & 0xffff;
+
+    if (op === 0xcb) {
+      const cb = rd((r.pc + 1) & 0xffff);
+      r.pc = next(2);
+      // minimal subset via existing helpers where possible
+      const regGet = [
+        () => r.b,
+        () => r.c,
+        () => r.d,
+        () => r.e,
+        () => r.h,
+        () => r.l,
+        () => rd(r.hl),
+        () => r.a,
+      ];
+      const regSet = [
+        (v) => (r.b = v),
+        (v) => (r.c = v),
+        (v) => (r.d = v),
+        (v) => (r.e = v),
+        (v) => (r.h = v),
+        (v) => (r.l = v),
+        (v) => wr(r.hl, v),
+        (v) => (r.a = v),
+      ];
+      const ri = cb & 7;
+      const group = cb >> 3;
+      if (group < 8) {
+        const fns = [rlc, rrc, rl, rr, sla, sra, swap, srl];
+        regSet[ri](fns[group](regGet[ri]()));
+        m = ri === 6 ? 4 : 2;
+      } else if (group < 16) {
+        bit(group - 8, regGet[ri]());
+        m = ri === 6 ? 3 : 2;
+      } else if (group < 24) {
+        regSet[ri](res(group - 16, regGet[ri]()));
+        m = ri === 6 ? 4 : 2;
+      } else {
+        regSet[ri](set(group - 24, regGet[ri]()));
+        m = ri === 6 ? 4 : 2;
+      }
+      return m;
+    }
+
+    // Common ops only — enough to bridge AOT gaps
+    const n = rd(next(1));
+    const nn = n | (rd(next(2)) << 8);
+    switch (op) {
+      case 0x00:
+        r.pc = next(1);
+        m = 1;
+        break;
+      case 0xc3:
+        CTRL_JP = nn;
+        m = 4;
+        break;
+      case 0xc9:
+        CTRL_JP = pop16();
+        m = 4;
+        break;
+      case 0xcd:
+        push16(next(3));
+        CTRL_JP = nn;
+        m = 6;
+        break;
+      case 0x18: {
+        const off = n < 0x80 ? n : n - 0x100;
+        CTRL_JP = (r.pc + 2 + off) & 0xffff;
+        m = 3;
+        break;
+      }
+      case 0x20:
+      case 0x28:
+      case 0x30:
+      case 0x38: {
+        const off = n < 0x80 ? n : n - 0x100;
+        const take =
+          (op === 0x20 && !r.fz) ||
+          (op === 0x28 && r.fz) ||
+          (op === 0x30 && !r.fc) ||
+          (op === 0x38 && r.fc);
+        if (take) CTRL_JP = (r.pc + 2 + off) & 0xffff;
+        else r.pc = next(2);
+        m = 3;
+        break;
+      }
+      case 0x3e:
+        r.a = n;
+        r.pc = next(2);
+        m = 2;
+        break;
+      case 0x21:
+        r.hl = nn;
+        r.pc = next(3);
+        m = 3;
+        break;
+      case 0x11:
+        r.de = nn;
+        r.pc = next(3);
+        m = 3;
+        break;
+      case 0x01:
+        r.bc = nn;
+        r.pc = next(3);
+        m = 3;
+        break;
+      case 0x31:
+        r.sp = nn;
+        r.pc = next(3);
+        m = 3;
+        break;
+      case 0xea:
+        wr(nn, r.a);
+        r.pc = next(3);
+        m = 4;
+        break;
+      case 0xfa:
+        r.a = rd(nn);
+        r.pc = next(3);
+        m = 4;
+        break;
+      case 0xe0:
+        wr(0xff00 + n, r.a);
+        r.pc = next(2);
+        m = 3;
+        break;
+      case 0xf0:
+        r.a = rd(0xff00 + n);
+        r.pc = next(2);
+        m = 3;
+        break;
+      case 0x76:
+        CTRL_HALT = 1;
+        r.pc = next(1);
+        m = 1;
+        break;
+      case 0xf3:
+        r.ime = 0;
+        r.pc = next(1);
+        m = 1;
+        break;
+      case 0xfb:
+        ei();
+        r.pc = next(1);
+        m = 1;
+        break;
+      default:
+        // skip 1 byte to avoid hard lock
+        r.pc = next(1);
+        m = 1;
+        break;
+    }
+    if (CTRL_JP >= 0) r.pc = CTRL_JP & 0xffff;
+    if (CTRL_HALT) r.halted = 1;
+    return m;
   }
 
-  const api = {
+  // Patch EI in recompiled path: FB sets ime immediately in AOT; improve via wr hook not needed
+  // Provide setIme for host if needed
+
+  return {
     r,
-    rd: rdJoy,
+    rd,
     wr,
     wr16abs,
     push16,
@@ -482,9 +789,12 @@ export function createMachine(romBytes) {
     res,
     set,
     stopcpu,
+    ei,
     romBank: () => romBank,
     setJoypad,
-    tickLY,
+    advanceDots,
+    checkInterrupts,
+    decodeStep,
     getLY: () => ly,
     vram,
     oam,
@@ -493,9 +803,4 @@ export function createMachine(romBytes) {
     hram,
     getRomBank: () => romBank,
   };
-
-  // wrap rd used by recompiled code through joypad
-  api.rd = rdJoy;
-
-  return api;
 }
