@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>gator player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,700;1,9..40,500&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="brand">
+      <p class="brand-mark">gator</p>
+      <p class="brand-sub">local Game Boy player · supply your own ROM</p>
+    </header>
+
+    <main class="stage">
+      <div id="drop" class="drop" hidden>
+        <div class="lcd-bezel">
+          <div class="lcd-glass">
+            <p class="lcd-hint">Drop a <code>.gb</code> here</p>
+            <p class="lcd-or">or</p>
+            <label class="file-btn">
+              Choose ROM
+              <input id="file" type="file" accept=".gb,.gbc,.zip,application/octet-stream" />
+            </label>
+            <div id="quick" class="quick" hidden>
+              <p class="quick-label">From <code>roms/</code> (local server)</p>
+              <div id="quick-buttons" class="quick-buttons"></div>
+            </div>
+          </div>
+        </div>
+        <p class="note">Nothing is uploaded. The ROM stays in this browser tab.</p>
+      </div>
+
+      <div id="play" class="play" hidden>
+        <div class="lcd-bezel playing">
+          <div id="game" class="game"></div>
+        </div>
+        <div class="toolbar">
+          <p id="rom-name" class="rom-name"></p>
+          <button type="button" id="eject" class="eject">Eject</button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="controls">
+      <h2>Controls</h2>
+      <dl>
+        <div><dt>D-Pad</dt><dd>Arrow keys</dd></div>
+        <div><dt>A</dt><dd>X</dd></div>
+        <div><dt>B</dt><dd>Z</dd></div>
+        <div><dt>Start</dt><dd>Enter</dd></div>
+        <div><dt>Select</dt><dd>Shift</dd></div>
+      </dl>
+      <p class="fine">EmulatorJS (gambatte). Remap keys in the emulator menu. Saves stay in this browser origin only.</p>
+    </aside>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

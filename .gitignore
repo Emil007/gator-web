@@ -1,0 +1,35 @@
+# Commercial ROMs — never commit
+roms/*
+!roms/README.md
+
+# Local reverse-engineering / disassembly (not part of gator-web)
+disassembly/
+disassembly-jp/
+disassembly-beta/
+docs/
+symbols/
+tools/
+scripts/generate_sym.py
+scripts/disassemble_all.py
+scripts/build.ps1
+scripts/setup_tools.ps1
+analyze_roms.py
+decode_text.py
+map_systems.py
+re_deep.py
+re_deep_out.txt
+decode_out.txt
+
+# Editor / junk
+.vs/
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+.DS_Store
+*.o
+*.map
+*.gb
+*.gbc
+*.sym
+!roms/README.md

@@ -1,0 +1,294 @@
+:root {
+  --shell: #5c6b4a;
+  --shell-dark: #3d4733;
+  --shell-light: #7a8a64;
+  --lcd-bg: #9bbc0f;
+  --lcd-pixel: #0f380f;
+  --lcd-mid: #306230;
+  --ink: #1a1f14;
+  --cream: #d8e0c8;
+  --warn: #b44a1a;
+  --radius: 18px;
+  --font-display: "DM Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-display);
+  color: var(--cream);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, #8a9a72 0%, transparent 55%),
+    linear-gradient(165deg, #2a3024 0%, #1a1f14 45%, #12160f 100%);
+  min-height: 100vh;
+}
+
+.shell {
+  width: min(920px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.brand-mark {
+  margin: 0;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  color: var(--lcd-bg);
+  text-shadow: 0 0 40px rgba(155, 188, 15, 0.25);
+}
+
+.brand-sub {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #a8b896;
+}
+
+.stage {
+  background: linear-gradient(160deg, var(--shell-light), var(--shell) 40%, var(--shell-dark));
+  border-radius: calc(var(--radius) + 8px);
+  padding: 1.25rem 1.25rem 1.5rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.lcd-bezel {
+  background: #1c2218;
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  box-shadow: inset 0 0 0 2px #0c100a;
+}
+
+.lcd-glass {
+  aspect-ratio: 10 / 9;
+  max-height: 70vh;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 30%),
+    var(--lcd-bg);
+  color: var(--lcd-pixel);
+  border-radius: 10px;
+  display: grid;
+  place-content: center;
+  gap: 0.65rem;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.lcd-hint {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.lcd-or {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.lcd-glass code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+.file-btn {
+  display: inline-block;
+  cursor: pointer;
+  background: var(--lcd-pixel);
+  color: var(--lcd-bg);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.7rem 1.25rem;
+  border-radius: 999px;
+  border: none;
+}
+
+.file-btn:hover,
+.file-btn:focus-within {
+  background: var(--lcd-mid);
+}
+
+.file-btn input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.quick {
+  margin-top: 0.75rem;
+}
+
+.quick-label {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.quick-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.quick-buttons button {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--lcd-mid);
+  background: rgba(15, 56, 15, 0.12);
+  color: var(--lcd-pixel);
+  cursor: pointer;
+}
+
+.quick-buttons button:hover {
+  background: rgba(15, 56, 15, 0.28);
+}
+
+.note {
+  margin: 0.9rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #dce6cc;
+  opacity: 0.85;
+  text-align: center;
+}
+
+.play .lcd-bezel.playing {
+  padding: 0.5rem;
+}
+
+.game {
+  width: 100%;
+  aspect-ratio: 10 / 9;
+  max-height: 70vh;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.game > div,
+.game iframe {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.85rem;
+}
+
+.rom-name {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #eef5e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eject {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--ink);
+  color: var(--cream);
+  cursor: pointer;
+}
+
+.eject:hover {
+  background: var(--warn);
+  color: #fff;
+}
+
+.controls {
+  border-top: 1px solid rgba(216, 224, 200, 0.15);
+  padding-top: 1rem;
+}
+
+.controls h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a8b896;
+}
+
+.controls dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem 1rem;
+}
+
+.controls dl > div {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.controls dt {
+  font-weight: 700;
+  color: var(--lcd-bg);
+  min-width: 3.5rem;
+}
+
+.controls dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #c5d0b4;
+}
+
+.fine {
+  margin: 1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #8a9678;
+}
+
+.drop.dragover .lcd-glass {
+  outline: 3px dashed var(--lcd-mid);
+  outline-offset: -10px;
+}
+
+@media (max-width: 640px) {
+  .shell {
+    width: calc(100% - 1.25rem);
+    padding-top: 1.25rem;
+  }
+
+  .stage {
+    padding: 0.85rem;
+  }
+}
