@@ -1,43 +1,46 @@
 # gator-web
 
-**Native port lab** — can a banked Game Boy title run on the web *without* emulating SM83/MBC1?
+**1:1 native port lab** (private): statically recompile Game Boy SM83 into JavaScript and run it with a DMG PPU — **not** EmulatorJS, **not** a fetch/decode/execute interpreter loop.
 
-Private research repo. You supply a `.gb` you own; it is used as an **asset/data pack only**. Game code here is JavaScript.
+You supply a `.gb` you own. The ROM bytes are the program + assets; git never stores dumps.
 
-## Thesis
+## Idea
 
-Banks, VBlank, and `$FF**` registers are platform glue. Algorithms, tables, and tiles are portable. See [`docs/NATIVE_PORT.md`](docs/NATIVE_PORT.md).
+| Layer | Role |
+|-------|------|
+| `scripts/recompile_to_js.py` | Ahead-of-time: each instruction in banks 0–2 → JS with identical register/memory semantics |
+| `player/generated/recompiled.js` | Generated step table (~33k ops) |
+| `player/machine.js` | Registers, MBC1 bank select, WRAM/VRAM/OAM/IO |
+| `player/ppu.js` | Renders 160×144 from VRAM/OAM the **game code** fills |
+| Your ROM | Loaded at runtime only |
+
+See [`docs/NATIVE_PORT.md`](docs/NATIVE_PORT.md).
 
 ## Run
 
 ```powershell
+# optional: regenerate JS from your US retail ROM in roms/
+python scripts\recompile_to_js.py
+
 powershell -ExecutionPolicy Bypass -File scripts\serve_player.ps1
 ```
 
-Open http://127.0.0.1:8765/player/ → load a ROM → native canvas loop (no EmulatorJS).
+Open http://127.0.0.1:8765/player/
 
-## What’s implemented
+Controls: Arrows, X=A, Z=B, Enter=Start, Shift=Select. Toolbar Faster/Slower adjusts how many recompiled ops run per animation frame (timing still approximate).
 
-- ROM load (file / local `roms/` when serving from repo root)
-- Header parse + bank slices
-- 2bpp tile decode from bank 3 → atlas
-- `ASCII+0x1F` menu string decode (from RE)
-- Attract → menu → **pinball table POC** (native physics; ROM tiles for backdrop)
-- State modes inspired by `$FFBD` jump table (not cycle-accurate yet)
+## Fidelity status
 
-## What’s next
-
-- Port real collision / object tables from the matching disassembly
-- BG map reconstruction for authentic tables
-- Sound via Web Audio from bank 1 driver RE
-- Side-by-side compare vs emulator as reference only
+- **Instruction semantics:** 1:1 for recompiled ops (flags, banks, stack, HRAM).
+- **Coverage:** banks 0–2 recompiled; bank 3 consumed as data via `rd`.
+- **Timing / APU / serial:** not cycle-accurate yet — enough LY ticking to escape busy-waits; sound TBD.
+- **Goal:** keep replacing approximate host glue until behavior matches a reference emulator frame-for-frame.
 
 ## Layout
 
 ```
-player/          native web runtime (ES modules)
-docs/            port architecture notes
-scripts/         local static server
+player/                 runtime + UI
+player/generated/       recompiled.js (generated)
+scripts/recompile_to_js.py
+docs/
 ```
-
-ROMs are gitignored. Never commit dumps.

@@ -2,7 +2,7 @@
 roms/*
 !roms/README.md
 
-# Local matching disassembly (optional sibling worktree; not required to run player)
+# Local matching disassembly / rgbds tooling (optional)
 disassembly/
 disassembly-jp/
 disassembly-beta/
@@ -12,13 +12,8 @@ scripts/generate_sym.py
 scripts/disassemble_all.py
 scripts/build.ps1
 scripts/setup_tools.ps1
+scripts/hunt_physics.py
 analyze_roms.py
-decode_text.js
-decode_text.py
-map_systems.py
-re_deep.py
-re_deep_out.txt
-decode_out.txt
 
 # Editor / junk
 .vs/
@@ -31,3 +26,11 @@ __pycache__/
 *.map
 *.gb
 *.gbc
+
+# scratch analysis (local only)
+decode_out.txt
+decode_text.py
+map_systems.py
+re_deep.py
+re_deep_out.txt
+analyze_roms.py

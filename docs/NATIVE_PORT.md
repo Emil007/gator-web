@@ -1,39 +1,37 @@
 # Native port: what we're proving
 
-**Question:** Can a late-80s Game Boy title (SM83 + MBC1 banks + MMIO) run as a *native* web app — not by emulating the chip — if we reverse-engineer control flow and only use the ROM as an asset/data pack?
+**Question:** Can a late-80s Game Boy title (SM83 + MBC1 banks + MMIO) run as a *native* web app — not by emulating via an opcode interpreter — if we reverse-engineer / recompile control flow and only use the ROM as the program+asset blob at runtime?
 
-**Answer we're building toward:** Yes. Banks and memory-mapped hardware are *platform details*. The game is algorithms + tables + tiles + timing intent. Those map cleanly to JS modules, ArrayBuffers, Canvas, and `requestAnimationFrame`.
+## Approach: static recompilation (1:1)
+
+1. Classify ROM banks 0–2 as code, bank 3 as data (tiles).
+2. Translate each SM83 instruction into a JS statement with the same architectural effects.
+3. Drive those functions from `requestAnimationFrame`, with a small host PPU that displays VRAM/OAM.
+4. MBC1 `LD ($2000),A` becomes `romBank = a` inside `wr()`.
+
+This is the same family of technique as other “PC ports” of console games: the **program is the original program**, expressed in another ISA, not a clean-room rewrite of “pinball-like” gameplay.
 
 ## What we are *not* doing
 
-- No SM83 interpreter / no Gambatte / no EmulatorJS
-- No cycle-accurate PPU/APU clone (unless a later experiment needs it)
-- ROM is never committed; the browser keeps it in a local `ArrayBuffer`
+- No EmulatorJS / Gambatte / mGBA core
+- No interpretive `while(true){ fetch; decode; execute }` loop over raw opcodes
+- ROM files are never committed
 
 ## GB concepts → web
 
 | Game Boy | Native web |
 |----------|------------|
-| ROM bank 0 fixed `$0000–$3FFF` | Always-loaded module / data slice `rom.slice(0, 0x4000)` |
-| Switchable `$4000–$7FFF` via MBC1 `$2000` | `bank = n` index into `rom.subarray(n*0x4000, …)` or ES modules per bank |
-| VRAM `$8000–$9FFF` 2bpp tiles | Decode once → `ImageData` / atlas canvas |
-| BG map `$9800` / `$9C00` | `Uint8Array(32*32)` of tile indices + draw |
-| OAM sprites | Objects with x/y/tile; draw atop BG |
-| HRAM game state (`$FFBD`, …) | Plain JS object `state = { mode, flags, … }` |
-| `RST` / jump tables | `switch` / function tables |
-| VBlank-paced loop | `requestAnimationFrame` (~60 Hz); optional fixed 59.7 Hz accumulator |
-| APU registers | Web Audio (later); or silence stubs |
-| Serial 2P | WebRTC / local two-instance later |
+| ROM banks | `Uint8Array` + bank index on `$2000` writes |
+| SM83 code | AOT JS functions in `generated/recompiled.js` |
+| VRAM / OAM / IO | `machine.js` buffers |
+| LCD | `ppu.js` → canvas |
+| Joypad `$FF00` | Keyboard → IO read |
+| VBlank IRQ | Host sets IF + vectors to `$0040` each frame (approximate) |
 
-## Port strategy (incremental)
+## Regenerate
 
-1. **Asset layer** — parse header, decode 2bpp, pull known tables/strings from RE map  
-2. **Platform shim** — input, frame loop, LCD canvas (160×144 scaled)  
-3. **Systems** — port labeled routines from the disassembly as JS (state machine first, then table physics)  
-4. **Fidelity** — compare behavior against the real ROM in an emulator *side-by-side* while developing (emu is a *reference*, not the runtime)
+```powershell
+python scripts\recompile_to_js.py
+```
 
-## Why banks aren't a blocker
-
-MBC1 banking exists because the CPU address space is 16-bit. In JS we have the whole 64 KiB in one buffer. `BankSwitch(a)` becomes `currentBank = a || 1`. Calls that were `BankedCall(hl, bank)` become `banks[bank][hl]()` or just direct function imports after static analysis.
-
-Self-modifying code and exact interrupt timing are the hard parts for a *mechanical* asm→JS translator. A *hand/semiauto port* of a 64 KiB pinball game avoids most of that.
+Requires the US retail `.gb` under `roms/` (gitignored).
