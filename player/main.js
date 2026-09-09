@@ -36,6 +36,9 @@ let cpu = null;
 let raf = 0;
 let speed = 1;
 let frames = 0;
+let lastFrameTs = 0;
+let frameAccMs = 0;
+const FRAME_MS = 1000 / 60;
 
 const input = createPinballInput(null);
 
@@ -149,9 +152,9 @@ function leavePlayChrome() {
 
 function runFrameCycles() {
   let cycles = 0;
-  const target = CYCLES_PER_FRAME * speed;
+  const target = CYCLES_PER_FRAME;
   let steps = 0;
-  const maxSteps = 800000 * speed;
+  const maxSteps = 800000;
 
   while (cycles < target && steps < maxSteps) {
     const irqCyc = machine.checkInterrupts();
@@ -175,20 +178,43 @@ function runFrameCycles() {
   return { cycles, steps };
 }
 
-function frame() {
+function frame(ts) {
   if (!machine || !cpu) return;
   try {
-    input.sync();
-    const { cycles, steps } = runFrameCycles();
-    renderFrame(machine, frameBuf);
-    ctx.putImageData(frameBuf, 0, 0);
-    frames++;
+    if (!lastFrameTs) lastFrameTs = ts;
+    let dt = ts - lastFrameTs;
+    lastFrameTs = ts;
+    if (dt > 100) dt = 100; // tab resume
+    frameAccMs += dt * speed;
+
+    let ran = 0;
+    while (frameAccMs >= FRAME_MS && ran < 4) {
+      frameAccMs -= FRAME_MS;
+      input.sync();
+      runFrameCycles();
+      ran++;
+      frames++;
+    }
+    // Keep a little audio backlog; if we're starved, catch up one extra frame
+    if (ran === 0 && machine.audioQueued && machine.audioQueued() < 2048) {
+      input.sync();
+      runFrameCycles();
+      ran = 1;
+      frames++;
+      frameAccMs = 0;
+    }
+
+    if (ran > 0) {
+      renderFrame(machine, frameBuf);
+      ctx.putImageData(frameBuf, 0, 0);
+    }
+
     if ((frames & 0x0f) === 0 && status) {
       const lcdc = machine.io[0x40];
       status.textContent =
         `${status.dataset.name} · dynamic · pc=$${machine.r.pc.toString(16).padStart(4, "0")}` +
         ` bank=${machine.getRomBank()} ly=${machine.getLY()} lcdc=$${lcdc.toString(16)}` +
-        ` · ${steps}/${cycles}t · x${speed}`;
+        ` · x${speed}`;
     }
   } catch (err) {
     log(`RUNTIME ERROR at pc=$${machine?.r?.pc?.toString(16)}\n${err?.stack || err}`);
@@ -211,6 +237,9 @@ function showApp(name) {
 async function startRom(bytes, name) {
   try {
     if (raf) cancelAnimationFrame(raf);
+    lastFrameTs = 0;
+    frameAccMs = 0;
+    frames = 0;
     log(`Loading ${name} (${bytes.length} bytes)…`);
     machine = createMachine(bytes);
     machine.r.pc = 0x0100;
