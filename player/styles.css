@@ -174,7 +174,8 @@ body {
   position: relative;
 }
 
-.touch-pad {
+.touch-pad,
+.touch-top {
   display: none;
 }
 
@@ -298,7 +299,7 @@ body {
   }
 }
 
-/* —— Mobile: LCD on top, physical-style pad docked under it —— */
+/* —— Mobile: exit top · LCD · fixed-height gamepad (same title → play) —— */
 body.is-playing:not(.touch-ui) {
   overflow-x: hidden;
   overflow-y: auto;
@@ -351,34 +352,51 @@ body.is-playing.touch-ui .play-frame {
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  /* Fixed chrome heights so title ↔ play does not reflow the LCD */
+  grid-template-rows:
+    calc(2.5rem + env(safe-area-inset-top, 0px))
+    minmax(0, 1fr)
+    9.75rem;
   grid-template-areas:
+    "top"
     "lcd"
     "pad";
   min-height: 0;
-  padding-top: env(safe-area-inset-top, 0px);
   box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body.is-playing.touch-ui .touch-top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: env(safe-area-inset-top, 0px) 0.85rem 0;
+  box-sizing: border-box;
+  background: #1a1f14;
+  z-index: 6;
 }
 
 body.is-playing.touch-ui .lcd-bezel.playing {
   grid-area: lcd;
   background: #0a0e08;
   border-radius: 0;
-  padding: 0.5rem 0.5rem 0;
+  padding: 0.35rem 0.5rem 0;
   box-shadow: none;
   width: 100%;
   max-height: none;
   min-height: 0;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
 }
 
 body.is-playing.touch-ui #screen {
-  width: min(100%, calc((100dvh - 11.5rem) * 160 / 144));
+  width: min(100%, calc(100% - 0.5rem));
   max-width: 100%;
   height: auto;
   max-height: 100%;
+  object-fit: contain;
   border-radius: 6px;
   box-shadow: 0 0 0 3px #0c100a, 0 8px 24px rgba(0, 0, 0, 0.45);
 }
@@ -388,10 +406,13 @@ body.is-playing.touch-ui .touch-pad {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.75rem;
+  justify-content: space-between;
+  gap: 0.55rem;
   z-index: 5;
   margin: 0;
-  padding: 0.85rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 1rem 0.75rem;
   background:
     radial-gradient(ellipse 80% 60% at 50% 0%, #3a4530 0%, transparent 55%),
     linear-gradient(180deg, #2a3222 0%, #1a1f14 100%);
@@ -401,27 +422,30 @@ body.is-playing.touch-ui .touch-pad {
 
 body.is-playing.touch-ui .pad-face {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.65rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
   align-items: end;
+  justify-items: center;
+  min-height: 5.6rem;
 }
 
 body.is-playing.touch-ui .pad-sys {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.25rem;
+  min-height: 2rem;
 }
 
-/* Title: hide flippers/plunger — only start (+ exit) */
+/* Title: keep flipper row space so layout size matches play */
 body.is-playing.touch-ui.touch-title .pad-face {
-  display: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 body.is-playing.touch-ui.touch-title .sys-start {
   min-width: 9rem;
-  min-height: 2.75rem;
-  font-size: 0.95rem;
+  min-height: 2.5rem;
+  font-size: 0.9rem;
   letter-spacing: 0.22em;
 }
 
@@ -434,12 +458,9 @@ body.is-playing.touch-ui.touch-title .sys-start {
   align-items: center;
   justify-content: center;
   gap: 0.2rem;
-  min-height: 4.6rem;
+  width: 5.4rem;
+  height: 5.4rem;
   border-radius: 50%;
-  aspect-ratio: 1;
-  width: 100%;
-  max-width: 6.2rem;
-  justify-self: center;
   font-family: var(--font-mono);
   color: #d8e0c8;
   background:
@@ -451,20 +472,6 @@ body.is-playing.touch-ui.touch-title .sys-start {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   user-select: none;
-}
-
-.face-l,
-.face-r {
-  max-width: 5.4rem;
-  min-height: 5.4rem;
-}
-
-.face-plunger {
-  max-width: 4.6rem;
-  min-height: 5.8rem;
-  border-radius: 1.1rem;
-  background:
-    radial-gradient(circle at 50% 20%, #5a6a48 0%, #2f3a28 60%, #1a2214 100%);
 }
 
 .face-glyph {
@@ -520,7 +527,7 @@ body.is-playing.touch-ui.touch-title .sys-start {
   color: #a89080;
   letter-spacing: 0.14em;
   min-width: 3.5rem;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .sys-btn:active,

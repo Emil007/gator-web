@@ -40,6 +40,9 @@
 
       <div id="app" class="app" hidden>
         <div class="play-frame">
+          <div class="touch-top">
+            <button type="button" class="sys-btn sys-exit" id="touch-eject" data-action="eject">exit</button>
+          </div>
           <div class="lcd-bezel playing">
             <canvas id="screen" width="160" height="144" aria-label="Game screen"></canvas>
           </div>
@@ -49,18 +52,13 @@
                 <span class="face-glyph">◀</span>
                 <span class="face-caption">L flipper</span>
               </button>
-              <button type="button" class="face-btn face-plunger" data-side="plunger" aria-label="Plunger">
-                <span class="face-glyph">▲</span>
-                <span class="face-caption">plunger</span>
-              </button>
-              <button type="button" class="face-btn face-r" data-side="right" aria-label="Right flipper">
+              <button type="button" class="face-btn face-r" data-side="right" aria-label="Right flipper and plunger">
                 <span class="face-glyph">▶</span>
-                <span class="face-caption">R flipper</span>
+                <span class="face-caption">R · hold</span>
               </button>
             </div>
             <div class="pad-sys">
               <button type="button" class="sys-btn sys-start" data-side="start">start</button>
-              <button type="button" class="sys-btn sys-exit" id="touch-eject" data-action="eject">exit</button>
             </div>
           </div>
         </div>
@@ -85,7 +83,7 @@
       </section>
       <section>
         <h2>Controls</h2>
-        <p class="body tight">D-Pad = left · A/B = right + plunger. Mobile: flipper pad under the LCD; title shows start / exit only.</p>
+        <p class="body tight">D-Pad = left · A/B = right flipper + plunger. Mobile: L / R under the LCD (hold R to plunge); exit at top.</p>
         <dl>
           <div><dt>Left flipper</dt><dd>← · Left Ctrl · mouse L</dd></div>
           <div><dt>Right flipper</dt><dd>→ · Right Ctrl · mouse R</dd></div>

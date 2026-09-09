@@ -87,10 +87,11 @@ async function probeQuick() {
 function bindTouchPad() {
   if (!touchPad) return;
   const active = new Map(); // pointerId -> side
+  const playFrame = touchPad.closest(".play-frame") || document;
 
   const down = (e) => {
     const eject = e.target.closest?.("#touch-eject");
-    if (eject && touchPad.contains(eject)) {
+    if (eject) {
       e.preventDefault();
       ejectRom();
       return;
@@ -125,10 +126,10 @@ function bindTouchPad() {
     }
   };
 
-  touchPad.addEventListener("pointerdown", down);
-  touchPad.addEventListener("pointerup", up);
-  touchPad.addEventListener("pointercancel", up);
-  touchPad.addEventListener("lostpointercapture", up);
+  playFrame.addEventListener("pointerdown", down);
+  playFrame.addEventListener("pointerup", up);
+  playFrame.addEventListener("pointercancel", up);
+  playFrame.addEventListener("lostpointercapture", up);
 }
 
 /** Title/attract uniquely flips LCDC bit4 mid-frame (signed logo → unsigned font). */
@@ -283,7 +284,7 @@ async function startRom(bytes, name) {
     log(
       `Running ${name}\n` +
         `Left ← · Right → · Plunger hold Space/↓ · Start Enter\n` +
-        `Mobile: gamepad under the screen · start / exit on title · sound on`
+        `Mobile: L / R under screen (hold R to plunge) · exit top · sound on`
     );
     showApp(name);
     renderFrame(machine, frameBuf);
