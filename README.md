@@ -90,11 +90,11 @@ There is **no ahead-of-time recompile blob** in the published player. The ROM is
 
 ### 4. Draw (`player/ppu.js`)
 
-Once per frame, a software PPU reads **LCDC, SCX/SCY, BGP/OBP, WY/WX, VRAM tile maps, OAM** and paints a 160×144 `ImageData` onto the canvas (BG + window + 8×8/8×16 sprites, OBJ priority).
+Once per frame, a software PPU paints 160×144 from **VRAM / OAM** using **per-scanline snapshots** of LCDC, SCX/SCY, and BGP (taken as each line finishes). That matters for this title: the title screen flips LCDC tile addressing mid-frame (signed logo tiles above, unsigned font below). BG + window + 8×8/8×16 sprites with OBJ priority. Still not a cycle-accurate mid-scanline renderer.
 
 ### 5. Sound (`player/apu.js`)
 
-APU registers `$FF10–$FF3F` drive a compact square / wave / noise mixer into the Web Audio API (started on the same user gesture as “load ROM”).
+APU registers `$FF10–$FF3F` drive square / wave / noise into a **sample ring buffer** filled as the machine advances T-cycles; a Web Audio `ScriptProcessor` drains it (started on the same user gesture as “load ROM”). The rAF loop is **wall-clock paced (~60 Hz)** so high-refresh displays don’t overrun the queue.
 
 ### 6. Input (`player/input_pinball.js`)
 
@@ -106,7 +106,7 @@ The original game only needs a few pins:
 | Right flipper + plunger | A and B (shared) |
 | Start / pause | Start |
 
-The UI exposes arrows / Space / Enter, mouse on the screen, and on phones **invisible** L / plunger / R zones (fullscreen play chrome).
+The UI exposes arrows / Space / Enter, mouse on the screen, and on phones **invisible** L / plunger / R zones (fullscreen play chrome). Game keys call `preventDefault` (including key-repeat) so ↓/Space don’t scroll the page.
 
 ---
 
@@ -118,8 +118,8 @@ The UI exposes arrows / Space / Enter, mouse on the screen, and on phones **invi
 | MBC1 bank masking | Yes (64 KiB → banks 0–3) |
 | Frame pacing | ~70224 T/frame |
 | DIV / TIMA / LY / basic IRQs | Yes |
-| PPU | Frame renderer; not cycle-accurate mid-scanline |
-| APU | Functional mixer; not bit-perfect |
+| PPU | Per-line LCDC/scroll; not cycle-accurate mid-scanline |
+| APU | Ring-buffer mixer; not bit-perfect |
 | Serial / link cable | No |
 
 Good enough to boot and play the three known dumps; not a claim of pixel/cycle identity with a reference emulator.

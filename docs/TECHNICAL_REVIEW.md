@@ -77,13 +77,15 @@ Notable fixed bugs on the way to playability: MBC1 bank masking; ALU register op
 
 ### 3.4 PPU (`ppu.js`)
 
-Once per frame, read LCDC / scroll / palettes / window / VRAM / OAM and blit BG + window + sprites (8×8 and 8×16) into `ImageData`. OBJ-to-BG priority uses a BG color-index buffer; OBJ-to-OBJ uses DMG-style X then OAM-index priority.
+Blit BG + window + sprites (8×8 / 8×16) into `ImageData`. OBJ-to-BG priority uses a BG color-index buffer; OBJ-to-OBJ uses DMG-style X then OAM-index priority.
 
-Not cycle-accurate mid-scanline; fine for this title’s needs.
+**Per-scanline LCDC / SCX / SCY / BGP** are snapshotted when each visible line ends (`machine.js`). This title’s attract/title code flips LCDC bit 4 around LY≈104 so the logo uses signed `$8800/$9000` tiles while `PUSH START KEY` uses unsigned `$8000` font tiles — a single end-of-frame LCDC read draws one or the other wrong.
+
+Not a full cycle-accurate mid-scanline PPU (no per-dot mode timings), but enough for this game’s mid-frame register trick.
 
 ### 3.5 APU (`apu.js`)
 
-Writes to `$FF10–$FF3F` update square / wave / noise channel state. A Web Audio `ScriptProcessor` mixes samples. AudioContext is resumed on the same user gesture as “load ROM” (browser autoplay policy).
+Writes to `$FF10–$FF3F` update square / wave / noise channel state. `advance(t)` clocks channels and **pushes mixed samples into a ring buffer**; a Web Audio `ScriptProcessor` only pops that queue (hold-last on underrun). AudioContext is resumed on the same user gesture as “load ROM”.
 
 ### 3.6 Input (`input_pinball.js`)
 
@@ -96,20 +98,21 @@ Hardware mapping for this game (not a full Game Boy pad UI):
 | Plunger | Hold A/B, release to launch |
 | Start / pause | Start |
 
-Keys use `event.code` (arrows / Space / Enter). Mobile play uses invisible hit zones and fullscreen chrome.
+Keys use `event.code` (arrows / Space / Enter) with `preventDefault` on press **and** key-repeat so the page doesn’t scroll. Mobile play uses invisible hit zones and fullscreen chrome (`overflow` lock only in that mode).
 
 ## 4. Frame algorithm (pseudo)
 
 ```
-onAnimationFrame:
-  syncJoypad()
-  cycles = 0
-  while cycles < 70224 * speed:
-    cycles += handleIrq()
-    if halted: advance(4); continue
-    m = cpu.step()          # decode.js
-    advance(m * 4)          # DIV, TIMA, LY, APU
-  ppu.renderFrame(machine, imageData)
+onAnimationFrame(ts):           # wall-clock ~60 Hz (not 1 GB frame per rAF)
+  while timeBudget:
+    syncJoypad()
+    cycles = 0
+    while cycles < 70224:
+      cycles += handleIrq()
+      if halted: advance(4); continue
+      m = cpu.step()            # decode.js
+      advance(m * 4)            # DIV, TIMA, LY(+line LCDC snap), APU→ring
+  ppu.renderFrame(machine, imageData)   # uses lineLcdc[y] …
   canvas.putImageData(...)
 ```
 
@@ -120,8 +123,8 @@ onAnimationFrame:
 | SM83 semantics | Implemented |
 | MBC1 bank mask | Implemented |
 | DIV / TIMA / LY / IRQs / EI delay | Implemented (approx) |
-| PPU | Frame renderer + OBJ priority |
-| APU | Functional, not bit-perfect |
+| PPU | Per-line LCDC/scroll; not cycle-accurate mid-scanline |
+| APU | Ring-buffer mixer; not bit-perfect |
 | Serial / link cable | Not implemented |
 | Static recompiler | Experiment only; not used in player |
 
