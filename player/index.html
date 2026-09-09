@@ -43,13 +43,18 @@
           <div class="lcd-bezel playing">
             <canvas id="screen" width="160" height="144" aria-label="Game screen"></canvas>
           </div>
-          <!-- Invisible hit zones: left / plunger / right (+ start strip). No chrome. -->
-          <div id="touch-pad" class="touch-pad" aria-hidden="true">
-            <div class="zone zone-start" data-side="start"></div>
-            <div class="zone zone-left" data-side="left"></div>
-            <div class="zone zone-plunger" data-side="plunger"></div>
-            <div class="zone zone-right" data-side="right"></div>
-          </div>
+          <!-- Mobile: visible bottom dock. Title = Start+Exit; table = flippers too. -->
+          <nav id="touch-pad" class="touch-pad" aria-label="Touch controls" hidden>
+            <div class="touch-play" data-group="play">
+              <button type="button" class="pad-btn" data-side="left">Left</button>
+              <button type="button" class="pad-btn pad-plunger" data-side="plunger">Hold · release</button>
+              <button type="button" class="pad-btn" data-side="right">Right</button>
+            </div>
+            <div class="touch-meta">
+              <button type="button" class="pad-btn pad-start" data-side="start">Start</button>
+              <button type="button" class="pad-btn pad-exit" id="touch-eject">Exit</button>
+            </div>
+          </nav>
         </div>
         <div class="toolbar desk-only">
           <p id="status" class="rom-name"></p>
@@ -72,7 +77,7 @@
       </section>
       <section>
         <h2>Controls</h2>
-        <p class="body tight">D-Pad = left · A/B = right + plunger. Mobile: invisible screen zones (L / hold-center / R; top = start).</p>
+        <p class="body tight">D-Pad = left · A/B = right + plunger. Mobile: bottom Start / Exit; flippers appear after the title.</p>
         <dl>
           <div><dt>Left flipper</dt><dd>← · Left Ctrl · mouse L</dd></div>
           <div><dt>Right flipper</dt><dd>→ · Right Ctrl · mouse R</dd></div>
