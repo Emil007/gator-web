@@ -296,6 +296,12 @@ body {
   }
 }
 
+/* Desktop: lock page scroll while playing (↓ / Space are game keys) */
+body.is-playing {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* —— Mobile / touch play: fullscreen, invisible zones —— */
 body.is-playing.touch-ui {
   overflow: hidden;

@@ -42,10 +42,8 @@ export function createPinballInput(machine) {
     sync();
   }
 
-  window.addEventListener("keydown", (e) => {
-    if (e.repeat) return;
-    const c = e.code;
-    if (
+  function isGameKey(c) {
+    return (
       c === "ArrowLeft" ||
       c === "ArrowRight" ||
       c === "ArrowDown" ||
@@ -57,9 +55,14 @@ export function createPinballInput(machine) {
       c === "ControlRight" ||
       c === "ShiftLeft" ||
       c === "ShiftRight"
-    ) {
-      e.preventDefault();
-    }
+    );
+  }
+
+  window.addEventListener("keydown", (e) => {
+    const c = e.code;
+    // Always block browser scroll/page keys — including key-repeat while held
+    if (isGameKey(c)) e.preventDefault();
+    if (e.repeat) return;
     if (c === "ArrowLeft" || c === "ControlLeft" || c === "ShiftLeft") set("left", true);
     if (c === "ArrowRight" || c === "ControlRight" || c === "ShiftRight") set("right", true);
     if (c === "ArrowDown" || c === "ArrowUp" || c === "Space") set("plunger", true);
@@ -68,6 +71,7 @@ export function createPinballInput(machine) {
 
   window.addEventListener("keyup", (e) => {
     const c = e.code;
+    if (isGameKey(c)) e.preventDefault();
     if (c === "ArrowLeft" || c === "ControlLeft" || c === "ShiftLeft") set("left", false);
     if (c === "ArrowRight" || c === "ControlRight" || c === "ShiftRight") set("right", false);
     if (c === "ArrowDown" || c === "ArrowUp" || c === "Space") set("plunger", false);

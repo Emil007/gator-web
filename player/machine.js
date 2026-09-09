@@ -26,6 +26,13 @@ export function createMachine(romBytes) {
   let statMode = 1; // VBlank at start post-boot-ish; we'll set properly
   let imeScheduled = 0; // EI delay
   const apu = createApu();
+  // Per-scanline LCDC/scroll snapshots (title screen toggles unsigned/signed mid-frame)
+  const lineLcdc = new Uint8Array(144);
+  const lineScx = new Uint8Array(144);
+  const lineScy = new Uint8Array(144);
+  const lineBgp = new Uint8Array(144);
+  lineLcdc.fill(0x91);
+  lineBgp.fill(0xfc);
 
   const r = {
     a: 0x01,
@@ -169,6 +176,13 @@ export function createMachine(romBytes) {
     lineCycles += dots;
     while (lineCycles >= CYCLES_PER_LINE) {
       lineCycles -= CYCLES_PER_LINE;
+      // Snapshot regs as this scanline finishes (captures mid-frame LCDC switches)
+      if (ly < 144) {
+        lineLcdc[ly] = io[0x40];
+        lineScx[ly] = io[0x43];
+        lineScy[ly] = io[0x42];
+        lineBgp[ly] = io[0x47];
+      }
       ly++;
       if (ly === 144) {
         requestInterrupt(0x01); // VBlank
@@ -652,6 +666,10 @@ export function createMachine(romBytes) {
     advanceDots,
     checkInterrupts,
     getLY: () => ly,
+    lineLcdc,
+    lineScx,
+    lineScy,
+    lineBgp,
     vram,
     oam,
     io,
@@ -660,6 +678,7 @@ export function createMachine(romBytes) {
     getRomBank: () => mappedRomBank(),
     resumeAudio: () => apu.resume(),
     suspendAudio: () => apu.suspend(),
+    audioQueued: () => apu.queuedSamples(),
   };
   api.decodeStep = createDecodeStep(api);
   return api;
