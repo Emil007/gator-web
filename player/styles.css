@@ -23,6 +23,8 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto; /* keep scrollbar when the shell is taller than the viewport */
 }
 
 body {
@@ -296,13 +298,16 @@ body {
   }
 }
 
-/* Desktop: lock page scroll while playing (↓ / Space are game keys) */
-body.is-playing {
-  overflow: hidden;
-  overscroll-behavior: none;
+/* —— Mobile / touch play: fullscreen, invisible zones —— */
+/* Desktop: keep page scroll + scrollbar. ↓/Space are blocked in JS only. */
+body.is-playing:not(.touch-ui) {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  height: auto;
+  max-height: none;
 }
 
-/* —— Mobile / touch play: fullscreen, invisible zones —— */
 body.is-playing.touch-ui {
   overflow: hidden;
   overscroll-behavior: none;
