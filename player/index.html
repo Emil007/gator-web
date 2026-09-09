@@ -43,18 +43,26 @@
           <div class="lcd-bezel playing">
             <canvas id="screen" width="160" height="144" aria-label="Game screen"></canvas>
           </div>
-          <!-- Mobile: visible bottom dock. Title = Start+Exit; table = flippers too. -->
-          <nav id="touch-pad" class="touch-pad" aria-label="Touch controls" hidden>
-            <div class="touch-play" data-group="play">
-              <button type="button" class="pad-btn" data-side="left">Left</button>
-              <button type="button" class="pad-btn pad-plunger" data-side="plunger">Hold · release</button>
-              <button type="button" class="pad-btn" data-side="right">Right</button>
+          <div id="touch-pad" class="touch-pad" aria-label="Game controls" hidden>
+            <div class="pad-face" data-group="play">
+              <button type="button" class="face-btn face-l" data-side="left" aria-label="Left flipper">
+                <span class="face-glyph">◀</span>
+                <span class="face-caption">L flipper</span>
+              </button>
+              <button type="button" class="face-btn face-plunger" data-side="plunger" aria-label="Plunger">
+                <span class="face-glyph">▲</span>
+                <span class="face-caption">plunger</span>
+              </button>
+              <button type="button" class="face-btn face-r" data-side="right" aria-label="Right flipper">
+                <span class="face-glyph">▶</span>
+                <span class="face-caption">R flipper</span>
+              </button>
             </div>
-            <div class="touch-meta">
-              <button type="button" class="pad-btn pad-start" data-side="start">Start</button>
-              <button type="button" class="pad-btn pad-exit" id="touch-eject" data-action="eject">Exit</button>
+            <div class="pad-sys">
+              <button type="button" class="sys-btn sys-start" data-side="start">start</button>
+              <button type="button" class="sys-btn sys-exit" id="touch-eject" data-action="eject">exit</button>
             </div>
-          </nav>
+          </div>
         </div>
         <div class="toolbar desk-only">
           <p id="status" class="rom-name"></p>
@@ -77,7 +85,7 @@
       </section>
       <section>
         <h2>Controls</h2>
-        <p class="body tight">D-Pad = left · A/B = right + plunger. Mobile: bottom Start / Exit; flippers appear after the title.</p>
+        <p class="body tight">D-Pad = left · A/B = right + plunger. Mobile: flipper pad under the LCD; title shows start / exit only.</p>
         <dl>
           <div><dt>Left flipper</dt><dd>← · Left Ctrl · mouse L</dd></div>
           <div><dt>Right flipper</dt><dd>→ · Right Ctrl · mouse R</dd></div>
