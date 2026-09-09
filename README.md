@@ -6,6 +6,8 @@ Bring-your-own-ROM web player for *Pinball: Revenge of the 'Gator* / *66匹の�
 
 **Play:** [https://emil007.github.io/gator-web/player/](https://emil007.github.io/gator-web/player/)
 
+**Technical review (architecture):** [`docs/TECHNICAL_REVIEW.md`](docs/TECHNICAL_REVIEW.md)
+
 ---
 
 ## What this project is
