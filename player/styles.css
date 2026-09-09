@@ -298,7 +298,7 @@ body {
   }
 }
 
-/* —— Mobile / touch play: fullscreen, invisible zones —— */
+/* —— Mobile / touch play: screen on top, visible controls in unused bottom —— */
 /* Desktop: keep page scroll + scrollbar. ↓/Space are blocked in JS only. */
 body.is-playing:not(.touch-ui) {
   overflow-x: hidden;
@@ -311,10 +311,9 @@ body.is-playing:not(.touch-ui) {
 body.is-playing.touch-ui {
   overflow: hidden;
   overscroll-behavior: none;
-  background: #000;
+  background: #0c100a;
   min-height: 100dvh;
   height: 100dvh;
-  touch-action: none;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -335,97 +334,135 @@ body.is-playing.touch-ui .boot {
 }
 
 body.is-playing.touch-ui .stage {
-  background: #000;
+  background: #0c100a;
   border-radius: 0;
   box-shadow: none;
   padding: 0;
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 body.is-playing.touch-ui .app {
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
 }
 
 body.is-playing.touch-ui .play-frame {
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  min-height: 0;
 }
 
 body.is-playing.touch-ui .lcd-bezel.playing {
-  background: transparent;
+  background: #000;
   border-radius: 0;
   padding: 0;
   box-shadow: none;
-  width: min(100vw, calc(100dvh * 160 / 144));
-  max-height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: none;
 }
 
 body.is-playing.touch-ui #screen {
-  width: 100%;
+  width: min(100vw, calc((100dvh - 9.5rem) * 160 / 144));
+  max-width: 100%;
   height: auto;
-  max-height: 100dvh;
+  max-height: calc(100dvh - 9.5rem - env(safe-area-inset-top, 0px));
   border-radius: 0;
 }
 
 body.is-playing.touch-ui .touch-pad {
-  display: block;
-  position: fixed;
-  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 0 0 auto;
   z-index: 30;
-  touch-action: none;
-  /* invisible — zones only exist for hit-testing */
+  padding: 0.65rem 0.85rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, #1a2214 0%, #12160f 100%);
+  border-top: 1px solid rgba(155, 188, 15, 0.22);
+  touch-action: manipulation;
 }
 
-body.is-playing.touch-ui .zone {
-  position: absolute;
-  background: transparent;
+body.is-playing.touch-ui .touch-play,
+body.is-playing.touch-ui .touch-meta {
+  display: grid;
+  gap: 0.5rem;
+}
+
+body.is-playing.touch-ui .touch-play {
+  grid-template-columns: 1fr 1.35fr 1fr;
+}
+
+body.is-playing.touch-ui .touch-meta {
+  grid-template-columns: 1.6fr 1fr;
+}
+
+/* Title / attract: only Start + Exit */
+body.is-playing.touch-ui.touch-title .touch-play {
+  display: none;
+}
+
+body.is-playing.touch-ui.touch-title .touch-meta {
+  grid-template-columns: 1.8fr 1fr;
+}
+
+body.is-playing.touch-ui.touch-title .pad-start {
+  min-height: 3.4rem;
+  font-size: 1.15rem;
+}
+
+.pad-btn {
+  appearance: none;
+  border: none;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: #eef5e0;
+  background: #2a3420;
+  border-radius: 14px;
+  min-height: 3rem;
+  padding: 0.65rem 0.5rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-body.is-playing.touch-ui .zone-start {
-  top: 0;
-  left: 25%;
-  right: 25%;
-  height: max(12%, 48px);
-  padding-top: env(safe-area-inset-top, 0);
+.pad-btn:active,
+.pad-btn.is-down {
+  background: var(--lcd-mid);
+  color: var(--lcd-bg);
+  transform: scale(0.98);
 }
 
-body.is-playing.touch-ui .zone-left {
-  left: 0;
-  top: 12%;
-  bottom: 0;
-  width: 38%;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+.pad-plunger {
+  background: #24301c;
+  font-size: 0.82rem;
 }
 
-body.is-playing.touch-ui .zone-right {
-  right: 0;
-  top: 12%;
-  bottom: 0;
-  width: 38%;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+.pad-start {
+  background: #3a4a28;
+  color: var(--lcd-bg);
 }
 
-body.is-playing.touch-ui .zone-plunger {
-  left: 38%;
-  right: 38%;
-  top: 45%;
-  bottom: 0;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+.pad-exit {
+  background: #2a1c18;
+  color: #e8b4a0;
+  font-size: 0.88rem;
 }
 
-/* Optional: flash `?touchdebug=1` to see zones */
-body.touch-debug .zone-left { background: rgba(0, 120, 255, 0.12); }
-body.touch-debug .zone-right { background: rgba(255, 60, 60, 0.12); }
-body.touch-debug .zone-plunger { background: rgba(255, 160, 0, 0.12); }
-body.touch-debug .zone-start { background: rgba(255, 255, 255, 0.08); }
+.pad-exit:active,
+.pad-exit.is-down {
+  background: var(--warn);
+  color: #fff;
+}

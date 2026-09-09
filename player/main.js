@@ -88,15 +88,16 @@ function bindTouchPad() {
   const active = new Map(); // pointerId -> side
 
   const down = (e) => {
-    const zone = e.target.closest?.("[data-side]");
-    if (!zone) return;
+    const btn = e.target.closest?.("[data-side]");
+    if (!btn || !touchPad.contains(btn)) return;
     e.preventDefault();
-    const side = zone.dataset.side;
+    const side = btn.dataset.side;
     active.set(e.pointerId, side);
+    btn.classList.add("is-down");
     input.held[side] = true;
     input.sync();
     try {
-      zone.setPointerCapture?.(e.pointerId);
+      btn.setPointerCapture?.(e.pointerId);
     } catch {
       /* ignore */
     }
@@ -107,9 +108,11 @@ function bindTouchPad() {
     if (!side) return;
     e.preventDefault();
     active.delete(e.pointerId);
+    const btn = touchPad.querySelector(`[data-side="${side}"]`);
     let still = false;
     for (const s of active.values()) if (s === side) still = true;
     if (!still) {
+      btn?.classList.remove("is-down");
       input.held[side] = false;
       input.sync();
     }
@@ -121,13 +124,34 @@ function bindTouchPad() {
   touchPad.addEventListener("lostpointercapture", up);
 }
 
+/** Title/attract uniquely flips LCDC bit4 mid-frame (signed logo → unsigned font). */
+function isTitleAttract(m) {
+  const lines = m?.lineLcdc;
+  if (!lines) return false;
+  return (lines[40] & 0x10) === 0 && (lines[120] & 0x10) !== 0;
+}
+
+function updateTouchChrome() {
+  if (!document.body.classList.contains("touch-ui") || !machine) return;
+  const title = isTitleAttract(machine);
+  document.body.classList.toggle("touch-title", title);
+  // Release flipper/plunger holds when leaving the table UI
+  if (title && (input.held.left || input.held.right || input.held.plunger)) {
+    input.held.left = false;
+    input.held.right = false;
+    input.held.plunger = false;
+    input.sync();
+    touchPad?.querySelectorAll(".is-down").forEach((el) => {
+      if (el.dataset.side !== "start") el.classList.remove("is-down");
+    });
+  }
+}
+
 async function enterPlayChrome() {
   document.body.classList.add("is-playing");
   if (isTouchUi()) {
-    document.body.classList.add("touch-ui");
-    if (new URLSearchParams(location.search).has("touchdebug")) {
-      document.body.classList.add("touch-debug");
-    }
+    document.body.classList.add("touch-ui", "touch-title");
+    if (touchPad) touchPad.hidden = false;
     const root = document.documentElement;
     try {
       if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: "hide" });
@@ -144,7 +168,8 @@ async function enterPlayChrome() {
 }
 
 function leavePlayChrome() {
-  document.body.classList.remove("is-playing", "touch-ui", "touch-debug");
+  document.body.classList.remove("is-playing", "touch-ui", "touch-title", "touch-debug");
+  if (touchPad) touchPad.hidden = true;
   if (document.fullscreenElement) {
     document.exitFullscreen?.().catch(() => {});
   }
@@ -207,6 +232,7 @@ function frame(ts) {
     if (ran > 0) {
       renderFrame(machine, frameBuf);
       ctx.putImageData(frameBuf, 0, 0);
+      updateTouchChrome();
     }
 
     if ((frames & 0x0f) === 0 && status) {
@@ -245,12 +271,12 @@ async function startRom(bytes, name) {
     machine.r.pc = 0x0100;
     cpu = createCpu(machine);
     input.attachMachine(machine);
-    input.bindPointerSurface(canvas);
+    if (!isTouchUi()) input.bindPointerSurface(canvas);
     await machine.resumeAudio().catch(() => {});
     log(
       `Running ${name}\n` +
         `Left ← · Right → · Plunger hold Space/↓ · Start Enter\n` +
-        `Mobile: L / hold center / R · top strip = start · sound on`
+        `Mobile: Start / Exit below the screen · flippers after title · sound on`
     );
     showApp(name);
     renderFrame(machine, frameBuf);
@@ -286,9 +312,15 @@ fileInput.addEventListener("change", () => {
   if (f) startFromFile(f).catch((e) => log(String(e)));
 });
 
-document.getElementById("eject")?.addEventListener("click", () => {
+function ejectRom() {
   leavePlayChrome();
   location.reload();
+}
+
+document.getElementById("eject")?.addEventListener("click", ejectRom);
+document.getElementById("touch-eject")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  ejectRom();
 });
 document.getElementById("mode-menu")?.addEventListener("click", () => {
   speed = Math.max(0.25, speed / 2);
@@ -297,22 +329,6 @@ document.getElementById("mode-menu")?.addEventListener("click", () => {
 document.getElementById("mode-play")?.addEventListener("click", () => {
   speed = Math.min(4, speed * 2);
   log(`speed → ${speed}x`);
-});
-
-// Triple-tap top start zone quickly → eject (escape hatch on mobile)
-let startTaps = 0;
-let startTapTimer = 0;
-touchPad?.querySelector(".zone-start")?.addEventListener("pointerdown", () => {
-  startTaps++;
-  clearTimeout(startTapTimer);
-  startTapTimer = setTimeout(() => {
-    startTaps = 0;
-  }, 600);
-  if (startTaps >= 3) {
-    startTaps = 0;
-    leavePlayChrome();
-    location.reload();
-  }
 });
 
 bindTouchPad();
