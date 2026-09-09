@@ -43,10 +43,11 @@ const FRAME_MS = 1000 / 60;
 const input = createPinballInput(null);
 
 function isTouchUi() {
-  // Prefer real touch phones/tablets; don't trip on Windows laptops with a touchscreen.
+  // Phones/tablets, or a narrow viewport with touch (covers “desktop site” on mobile).
   return (
     matchMedia("(hover: none) and (pointer: coarse)").matches ||
-    (matchMedia("(max-width: 820px)").matches && navigator.maxTouchPoints > 0)
+    (navigator.maxTouchPoints > 0 && matchMedia("(max-width: 900px)").matches) ||
+    matchMedia("(max-width: 640px)").matches
   );
 }
 
@@ -88,6 +89,12 @@ function bindTouchPad() {
   const active = new Map(); // pointerId -> side
 
   const down = (e) => {
+    const eject = e.target.closest?.("#touch-eject");
+    if (eject && touchPad.contains(eject)) {
+      e.preventDefault();
+      ejectRom();
+      return;
+    }
     const btn = e.target.closest?.("[data-side]");
     if (!btn || !touchPad.contains(btn)) return;
     e.preventDefault();
