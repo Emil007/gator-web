@@ -384,10 +384,13 @@ body.is-playing.touch-ui .lcd-bezel.playing {
 }
 
 body.is-playing.touch-ui #screen {
+  /* Fill the bezel (not native 160×144); keep GB aspect */
   width: auto;
-  height: auto;
+  height: 100%;
   max-width: 100%;
   max-height: 100%;
+  aspect-ratio: 160 / 144;
+  object-fit: contain;
   border-radius: 6px;
   box-shadow: 0 0 0 3px #0c100a, 0 8px 24px rgba(0, 0, 0, 0.45);
 }
@@ -430,12 +433,6 @@ body.is-playing.touch-ui .pad-sys {
   height: 2.1rem;
   justify-content: center;
   align-items: center;
-}
-
-/* Title: blank the flippers but keep their exact slot size */
-body.is-playing.touch-ui.touch-title .pad-face .face-btn {
-  visibility: hidden;
-  pointer-events: none;
 }
 
 .face-btn {
