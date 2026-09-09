@@ -14,6 +14,8 @@ export function createMachine(romBytes) {
   const hram = new Uint8Array(0x7f);
   const io = new Uint8Array(0x80);
 
+  const romBankCount = Math.max(2, rom.length >> 14); // 16 KiB banks
+  const romBankMask = romBankCount - 1; // power-of-two carts (this title: 4 → mask 3)
   let romBank = 1;
   let ie = 0;
   let div = 0; // 16-bit internal DIV counter
@@ -201,12 +203,21 @@ export function createMachine(romBytes) {
     }
   }
 
+  /** MBC1: 5-bit bank, 0→1, then mask to cart size (fixes bank=31 on 64 KiB). */
+  function mappedRomBank() {
+    let b = romBank & 0x1f;
+    if (b === 0) b = 1;
+    b &= romBankMask;
+    if (b === 0) b = 1; // e.g. write 4 on 4-bank cart → masked 0 → 1
+    return b;
+  }
+
   function rd(addr) {
     addr &= 0xffff;
     if (addr < 0x4000) return rom[addr];
     if (addr < 0x8000) {
-      const b = romBank || 1;
-      return rom[(b & 0x1f) * 0x4000 + (addr - 0x4000)];
+      const off = mappedRomBank() * 0x4000 + (addr - 0x4000);
+      return off < rom.length ? rom[off] : 0xff;
     }
     if (addr < 0xa000) return vram[addr - 0x8000];
     if (addr < 0xc000) return 0xff;
@@ -235,7 +246,6 @@ export function createMachine(romBytes) {
     if (addr < 0x2000) return;
     if (addr < 0x4000) {
       romBank = val & 0x1f;
-      if (romBank === 0) romBank = 1;
       return;
     }
     if (addr < 0x8000) return;
@@ -625,7 +635,7 @@ export function createMachine(romBytes) {
     set,
     stopcpu,
     ei,
-    romBank: () => romBank,
+    romBank: () => mappedRomBank(),
     setJoypad,
     advanceDots,
     checkInterrupts,
@@ -635,7 +645,7 @@ export function createMachine(romBytes) {
     io,
     wram,
     hram,
-    getRomBank: () => romBank,
+    getRomBank: () => mappedRomBank(),
   };
   api.decodeStep = createDecodeStep(api);
   return api;
