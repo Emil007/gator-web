@@ -146,7 +146,7 @@ export function createDecodeStep(M) {
       }
     } else if (op >= 0x80 && op <= 0xbf) {
       const fns = [add_a, adc_a, sub_a, sbc_a, and_a, xor_a, or_a, cp_a];
-      fns[(op >> 3) & 7](regR[op & 7]);
+      fns[(op >> 3) & 7](regR[op & 7]());
       m = (op & 7) === 6 ? 2 : 1;
     } else if (op >= 0xc0) {
       switch (op) {
