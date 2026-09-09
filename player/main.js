@@ -30,6 +30,7 @@ const frameBuf = ctx.createImageData(160, 144);
 const quick = document.getElementById("quick");
 const quickButtons = document.getElementById("quick-buttons");
 const touchPad = document.getElementById("touch-pad");
+const touchTop = document.getElementById("touch-top");
 
 let machine = null;
 let cpu = null;
@@ -160,6 +161,7 @@ async function enterPlayChrome() {
   if (isTouchUi()) {
     document.body.classList.add("touch-ui", "touch-title");
     if (touchPad) touchPad.hidden = false;
+    if (touchTop) touchTop.hidden = false;
     const root = document.documentElement;
     try {
       if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: "hide" });
@@ -178,6 +180,7 @@ async function enterPlayChrome() {
 function leavePlayChrome() {
   document.body.classList.remove("is-playing", "touch-ui", "touch-title", "touch-debug");
   if (touchPad) touchPad.hidden = true;
+  if (touchTop) touchTop.hidden = true;
   if (document.fullscreenElement) {
     document.exitFullscreen?.().catch(() => {});
   }

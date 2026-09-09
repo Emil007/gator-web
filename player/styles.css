@@ -299,7 +299,7 @@ body {
   }
 }
 
-/* —— Mobile: exit top · LCD · fixed-height gamepad (same title → play) —— */
+/* —— Mobile: exit ABOVE lcd · fixed pad (title/play same size) · L left / R right —— */
 body.is-playing:not(.touch-ui) {
   overflow-x: hidden;
   overflow-y: auto;
@@ -333,16 +333,12 @@ body.is-playing.touch-ui .boot {
   display: none !important;
 }
 
-body.is-playing.touch-ui .stage {
+body.is-playing.touch-ui .stage,
+body.is-playing.touch-ui .app {
   background: #1a1f14;
   border-radius: 0;
   box-shadow: none;
   padding: 0;
-  height: 100%;
-  display: block;
-}
-
-body.is-playing.touch-ui .app {
   width: 100%;
   height: 100%;
   display: block;
@@ -351,102 +347,95 @@ body.is-playing.touch-ui .app {
 body.is-playing.touch-ui .play-frame {
   width: 100%;
   height: 100%;
-  display: grid;
-  /* Fixed chrome heights so title ↔ play does not reflow the LCD */
-  grid-template-rows:
-    calc(2.5rem + env(safe-area-inset-top, 0px))
-    minmax(0, 1fr)
-    9.75rem;
-  grid-template-areas:
-    "top"
-    "lcd"
-    "pad";
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   box-sizing: border-box;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Exit strip — always above the game image */
 body.is-playing.touch-ui .touch-top {
-  grid-area: top;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
-  padding: env(safe-area-inset-top, 0px) 0.85rem 0;
+  height: calc(2.75rem + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 1rem 0;
   box-sizing: border-box;
   background: #1a1f14;
-  z-index: 6;
+  border-bottom: 1px solid #2a3222;
+  z-index: 8;
+  order: 1;
 }
 
 body.is-playing.touch-ui .lcd-bezel.playing {
-  grid-area: lcd;
+  order: 2;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   background: #0a0e08;
   border-radius: 0;
-  padding: 0.35rem 0.5rem 0;
+  padding: 0.4rem 0.5rem;
   box-shadow: none;
-  width: 100%;
-  max-height: none;
-  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 body.is-playing.touch-ui #screen {
-  width: min(100%, calc(100% - 0.5rem));
-  max-width: 100%;
+  width: auto;
   height: auto;
+  max-width: 100%;
   max-height: 100%;
-  object-fit: contain;
   border-radius: 6px;
   box-shadow: 0 0 0 3px #0c100a, 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
+/* Fixed bottom chrome — never changes between title and play */
 body.is-playing.touch-ui .touch-pad {
-  grid-area: pad;
+  order: 3;
   display: flex;
+  flex: 0 0 10rem;
   flex-direction: column;
   align-items: stretch;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.55rem;
-  z-index: 5;
-  margin: 0;
-  height: 100%;
+  height: 10rem;
+  max-height: 10rem;
   box-sizing: border-box;
-  padding: 0.65rem 1rem 0.75rem;
+  margin: 0;
+  padding: 0.7rem 1rem 0.8rem;
   background:
     radial-gradient(ellipse 80% 60% at 50% 0%, #3a4530 0%, transparent 55%),
     linear-gradient(180deg, #2a3222 0%, #1a1f14 100%);
   border-top: 2px solid #4a5840;
   touch-action: manipulation;
+  z-index: 5;
 }
 
 body.is-playing.touch-ui .pad-face {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
-  align-items: end;
-  justify-items: center;
-  min-height: 5.6rem;
+  display: flex;
+  flex: 0 0 5.6rem;
+  height: 5.6rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.35rem;
+  box-sizing: border-box;
 }
 
 body.is-playing.touch-ui .pad-sys {
   display: flex;
+  flex: 0 0 2.1rem;
+  height: 2.1rem;
   justify-content: center;
   align-items: center;
-  min-height: 2rem;
 }
 
-/* Title: keep flipper row space so layout size matches play */
-body.is-playing.touch-ui.touch-title .pad-face {
+/* Title: blank the flippers but keep their exact slot size */
+body.is-playing.touch-ui.touch-title .pad-face .face-btn {
   visibility: hidden;
   pointer-events: none;
-}
-
-body.is-playing.touch-ui.touch-title .sys-start {
-  min-width: 9rem;
-  min-height: 2.5rem;
-  font-size: 0.9rem;
-  letter-spacing: 0.22em;
 }
 
 .face-btn {
@@ -460,6 +449,7 @@ body.is-playing.touch-ui.touch-title .sys-start {
   gap: 0.2rem;
   width: 5.4rem;
   height: 5.4rem;
+  flex: 0 0 5.4rem;
   border-radius: 50%;
   font-family: var(--font-mono);
   color: #d8e0c8;
@@ -472,6 +462,14 @@ body.is-playing.touch-ui.touch-title .sys-start {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   user-select: none;
+}
+
+.face-l {
+  margin-right: auto;
+}
+
+.face-r {
+  margin-left: auto;
 }
 
 .face-glyph {
@@ -509,9 +507,9 @@ body.is-playing.touch-ui.touch-title .sys-start {
   color: #c5d0b4;
   background: #12160f;
   border-radius: 999px;
-  min-height: 1.85rem;
+  height: 1.85rem;
   min-width: 4.5rem;
-  padding: 0.35rem 0.9rem;
+  padding: 0 0.9rem;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 2px 0 #0a0e08;
@@ -521,13 +519,16 @@ body.is-playing.touch-ui.touch-title .sys-start {
 
 .sys-start {
   color: var(--lcd-bg);
+  /* same size on title and play — do not grow */
+  width: 5.5rem;
+  height: 1.85rem;
 }
 
 .sys-exit {
   color: #a89080;
   letter-spacing: 0.14em;
-  min-width: 3.5rem;
-  opacity: 0.9;
+  min-width: 3.75rem;
+  opacity: 0.95;
 }
 
 .sys-btn:active,
