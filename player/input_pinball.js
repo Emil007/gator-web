@@ -22,28 +22,15 @@ export function createPinballInput(machine) {
 
   function sync() {
     if (!machine) return;
-    // Title / attract: L·R navigate modes (d-pad); Start confirms
-    if (typeof document !== "undefined" && document.body.classList.contains("touch-title")) {
-      machine.setJoypad({
-        left: held.left,
-        right: held.right,
-        up: false,
-        down: false,
-        a: false,
-        b: false,
-        start: held.start,
-        select: false,
-      });
-      return;
-    }
     // A/B shared: right flipper and plunger both press face buttons
     const action = held.right || held.plunger;
     machine.setJoypad({
       // any d-pad bit = left flipper; use Left for clarity
+      // Same mapping on menus: desktop ← / Ctrl Left cycles modes
       left: held.left,
       right: false,
       up: false,
-      down: held.left, // also Down — matches “any direction” / common muscle memory
+      down: held.left,
       a: action,
       b: action,
       start: held.start,

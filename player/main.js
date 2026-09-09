@@ -2,7 +2,7 @@ import { loadRomFromUrl, loadRomBytes } from "./rom.js";
 import { createMachine, CYCLES_PER_FRAME } from "./machine.js";
 import { renderFrame } from "./ppu.js";
 import { createCpu } from "./cpu.js";
-import { createPinballInput } from "./input_pinball.js?v=11";
+import { createPinballInput } from "./input_pinball.js?v=12";
 
 const VARIANTS = [
   {
