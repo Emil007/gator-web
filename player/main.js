@@ -142,18 +142,8 @@ function isTitleAttract(m) {
 
 function updateTouchChrome() {
   if (!document.body.classList.contains("touch-ui") || !machine) return;
-  const title = isTitleAttract(machine);
-  document.body.classList.toggle("touch-title", title);
-  // Release flipper/plunger holds when leaving the table UI
-  if (title && (input.held.left || input.held.right || input.held.plunger)) {
-    input.held.left = false;
-    input.held.right = false;
-    input.held.plunger = false;
-    input.sync();
-    touchPad?.querySelectorAll(".is-down").forEach((el) => {
-      if (el.dataset.side !== "start") el.classList.remove("is-down");
-    });
-  }
+  // Same L / R / Start chrome on title, menus, and table
+  document.body.classList.toggle("touch-title", isTitleAttract(machine));
 }
 
 async function enterPlayChrome() {
