@@ -283,7 +283,7 @@ async function startRom(bytes, name) {
     log(
       `Running ${name}\n` +
         `Left ← · Right → · Plunger hold Space/↓ · Start Enter\n` +
-        `Mobile: Start / Exit below the screen · flippers after title · sound on`
+        `Mobile: gamepad under the screen · start / exit on title · sound on`
     );
     showApp(name);
     renderFrame(machine, frameBuf);

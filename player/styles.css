@@ -298,8 +298,7 @@ body {
   }
 }
 
-/* —— Mobile / touch play: screen on top, visible controls in unused bottom —— */
-/* Desktop: keep page scroll + scrollbar. ↓/Space are blocked in JS only. */
+/* —— Mobile: LCD on top, physical-style pad docked under it —— */
 body.is-playing:not(.touch-ui) {
   overflow-x: hidden;
   overflow-y: auto;
@@ -311,7 +310,7 @@ body.is-playing:not(.touch-ui) {
 body.is-playing.touch-ui {
   overflow: hidden;
   overscroll-behavior: none;
-  background: #0c100a;
+  background: #1a1f14;
   min-height: 100dvh;
   height: 100dvh;
   -webkit-user-select: none;
@@ -334,135 +333,198 @@ body.is-playing.touch-ui .boot {
 }
 
 body.is-playing.touch-ui .stage {
-  background: #0c100a;
+  background: #1a1f14;
   border-radius: 0;
   box-shadow: none;
   padding: 0;
   height: 100%;
-  display: flex;
+  display: block;
 }
 
 body.is-playing.touch-ui .app {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 
 body.is-playing.touch-ui .play-frame {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "lcd"
+    "pad";
   min-height: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
 }
 
 body.is-playing.touch-ui .lcd-bezel.playing {
-  background: #000;
+  grid-area: lcd;
+  background: #0a0e08;
   border-radius: 0;
-  padding: 0;
+  padding: 0.5rem 0.5rem 0;
   box-shadow: none;
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
   max-height: none;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 body.is-playing.touch-ui #screen {
-  width: min(100vw, calc((100dvh - 9.5rem) * 160 / 144));
+  width: min(100%, calc((100dvh - 11.5rem) * 160 / 144));
   max-width: 100%;
   height: auto;
-  max-height: calc(100dvh - 9.5rem - env(safe-area-inset-top, 0px));
-  border-radius: 0;
+  max-height: 100%;
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px #0c100a, 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 body.is-playing.touch-ui .touch-pad {
+  grid-area: pad;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  flex: 0 0 auto;
-  z-index: 30;
-  padding: 0.65rem 0.85rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, #1a2214 0%, #12160f 100%);
-  border-top: 1px solid rgba(155, 188, 15, 0.22);
+  align-items: stretch;
+  gap: 0.75rem;
+  z-index: 5;
+  margin: 0;
+  padding: 0.85rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, #3a4530 0%, transparent 55%),
+    linear-gradient(180deg, #2a3222 0%, #1a1f14 100%);
+  border-top: 2px solid #4a5840;
   touch-action: manipulation;
 }
 
-body.is-playing.touch-ui .touch-play,
-body.is-playing.touch-ui .touch-meta {
+body.is-playing.touch-ui .pad-face {
   display: grid;
-  gap: 0.5rem;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.65rem;
+  align-items: end;
 }
 
-body.is-playing.touch-ui .touch-play {
-  grid-template-columns: 1fr 1.35fr 1fr;
+body.is-playing.touch-ui .pad-sys {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.25rem;
 }
 
-body.is-playing.touch-ui .touch-meta {
-  grid-template-columns: 1.6fr 1fr;
-}
-
-/* Title / attract: only Start + Exit */
-body.is-playing.touch-ui.touch-title .touch-play {
+/* Title: hide flippers/plunger — only start (+ exit) */
+body.is-playing.touch-ui.touch-title .pad-face {
   display: none;
 }
 
-body.is-playing.touch-ui.touch-title .touch-meta {
-  grid-template-columns: 1.8fr 1fr;
+body.is-playing.touch-ui.touch-title .sys-start {
+  min-width: 9rem;
+  min-height: 2.75rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
 }
 
-body.is-playing.touch-ui.touch-title .pad-start {
-  min-height: 3.4rem;
-  font-size: 1.15rem;
-}
-
-.pad-btn {
+.face-btn {
   appearance: none;
   border: none;
   margin: 0;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.02em;
-  color: #eef5e0;
-  background: #2a3420;
-  border-radius: 14px;
-  min-height: 3rem;
-  padding: 0.65rem 0.5rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 4.6rem;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 6.2rem;
+  justify-self: center;
+  font-family: var(--font-mono);
+  color: #d8e0c8;
+  background:
+    radial-gradient(circle at 35% 30%, #4a5840 0%, #2a3424 55%, #1c2418 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.45),
+    0 4px 0 #0c100a;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   user-select: none;
 }
 
-.pad-btn:active,
-.pad-btn.is-down {
-  background: var(--lcd-mid);
+.face-l,
+.face-r {
+  max-width: 5.4rem;
+  min-height: 5.4rem;
+}
+
+.face-plunger {
+  max-width: 4.6rem;
+  min-height: 5.8rem;
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(circle at 50% 20%, #5a6a48 0%, #2f3a28 60%, #1a2214 100%);
+}
+
+.face-glyph {
+  font-size: 1.35rem;
+  line-height: 1;
   color: var(--lcd-bg);
-  transform: scale(0.98);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
 }
 
-.pad-plunger {
-  background: #24301c;
-  font-size: 0.82rem;
+.face-caption {
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
 }
 
-.pad-start {
-  background: #3a4a28;
+.face-btn:active,
+.face-btn.is-down {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.55),
+    0 1px 0 #0c100a;
   color: var(--lcd-bg);
 }
 
-.pad-exit {
-  background: #2a1c18;
-  color: #e8b4a0;
-  font-size: 0.88rem;
+.sys-btn {
+  appearance: none;
+  border: none;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  color: #c5d0b4;
+  background: #12160f;
+  border-radius: 999px;
+  min-height: 1.85rem;
+  min-width: 4.5rem;
+  padding: 0.35rem 0.9rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 0 #0a0e08;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.pad-exit:active,
-.pad-exit.is-down {
-  background: var(--warn);
-  color: #fff;
+.sys-start {
+  color: var(--lcd-bg);
+}
+
+.sys-exit {
+  color: #a89080;
+  letter-spacing: 0.14em;
+  min-width: 3.5rem;
+  opacity: 0.85;
+}
+
+.sys-btn:active,
+.sys-btn.is-down {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
