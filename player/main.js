@@ -2,7 +2,7 @@ import { loadRomFromUrl, loadRomBytes } from "./rom.js";
 import { createMachine, CYCLES_PER_FRAME } from "./machine.js";
 import { renderFrame } from "./ppu.js";
 import { createCpu } from "./cpu.js";
-import { createPinballInput } from "./input_pinball.js";
+import { createPinballInput } from "./input_pinball.js?v=11";
 
 const VARIANTS = [
   {
@@ -274,11 +274,7 @@ async function startRom(bytes, name) {
     input.attachMachine(machine);
     if (!isTouchUi()) input.bindPointerSurface(canvas);
     await machine.resumeAudio().catch(() => {});
-    log(
-      `Running ${name}\n` +
-        `Left ← · Right → · Plunger hold Space/↓ · Start Enter\n` +
-        `Mobile: L / R under screen (hold R to plunge) · exit top · sound on`
-    );
+    log(`Running ${name}`);
     showApp(name);
     renderFrame(machine, frameBuf);
     ctx.putImageData(frameBuf, 0, 0);
