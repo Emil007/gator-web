@@ -217,10 +217,11 @@ async function startRom(bytes, name) {
     cpu = createCpu(machine);
     input.attachMachine(machine);
     input.bindPointerSurface(canvas);
+    await machine.resumeAudio().catch(() => {});
     log(
       `Running ${name}\n` +
         `Left ← · Right → · Plunger hold Space/↓ · Start Enter\n` +
-        `Mobile: L / hold center / R · top strip = start`
+        `Mobile: L / hold center / R · top strip = start · sound on`
     );
     showApp(name);
     renderFrame(machine, frameBuf);

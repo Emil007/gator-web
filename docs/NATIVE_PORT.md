@@ -22,8 +22,7 @@ An optional AOT recompiler (`scripts/recompile_to_js.py`) remains as an experime
 | LY / LYC / STAT modes + IRQs | Yes |
 | VBlank / STAT / Timer IRQs | Yes |
 | EI delay | Yes |
-| APU / serial link | Not yet |
-| Cycle-perfect PPU mid-scanline | Approximate modes only |
+| APU | Functional mixer (square/wave/noise → Web Audio); not bit-perfect |
 | Controls UX | Flipper-centric (not full GB pad UI) |
 
 ## Run

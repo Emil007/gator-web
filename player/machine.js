@@ -1,6 +1,7 @@
 /** GB machine — memory, SM83 helpers, timers, LY/STAT, interrupt dispatch. */
 
 import { createDecodeStep } from "./decode.js";
+import { createApu } from "./apu.js";
 
 const CYCLES_PER_LINE = 456;
 const LINES_PER_FRAME = 154;
@@ -24,6 +25,7 @@ export function createMachine(romBytes) {
   let ly = 0;
   let statMode = 1; // VBlank at start post-boot-ish; we'll set properly
   let imeScheduled = 0; // EI delay
+  const apu = createApu();
 
   const r = {
     a: 0x01,
@@ -133,6 +135,7 @@ export function createMachine(romBytes) {
     // DIV: increments at 16384 Hz = every 256 T-cycles
     div = (div + dots) & 0xffff;
     io[0x04] = (div >> 8) & 0xff;
+    apu.advance(dots);
 
     // Timer
     const tac = io[0x07];
@@ -235,6 +238,10 @@ export function createMachine(romBytes) {
     }
     if (addr === 0xff04) return (div >> 8) & 0xff;
     if (addr === 0xff44) return ly;
+    if (addr >= 0xff10 && addr <= 0xff3f) {
+      const v = apu.read(addr);
+      if (v !== null) return v;
+    }
     if (addr < 0xff80) return io[addr - 0xff00];
     if (addr < 0xffff) return hram[addr - 0xff80];
     return ie;
@@ -288,6 +295,11 @@ export function createMachine(romBytes) {
       if (addr === 0xff46) {
         const src = val << 8;
         for (let i = 0; i < 0xa0; i++) oam[i] = rd(src + i);
+        return;
+      }
+      if (addr >= 0xff10 && addr <= 0xff3f) {
+        apu.write(addr, val);
+        io[addr - 0xff00] = val;
         return;
       }
       io[addr - 0xff00] = val;
@@ -646,6 +658,8 @@ export function createMachine(romBytes) {
     wram,
     hram,
     getRomBank: () => mappedRomBank(),
+    resumeAudio: () => apu.resume(),
+    suspendAudio: () => apu.suspend(),
   };
   api.decodeStep = createDecodeStep(api);
   return api;
