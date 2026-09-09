@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>gator — 1:1 native recompile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#12160f" />
+  <title>gator — native pinball runtime</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
@@ -13,7 +17,7 @@
   <div class="shell">
     <header class="brand">
       <p class="brand-mark">gator</p>
-      <p class="brand-sub">1:1 static recompile · SM83→JS · ROM supplies code bytes + assets · no opcode interpreter</p>
+      <p class="brand-sub">dynamic SM83 · your ROM · native flipper controls</p>
     </header>
 
     <main class="stage">
@@ -21,10 +25,10 @@
         <div class="lcd-bezel">
           <div class="lcd-glass">
             <p class="lcd-hint">Load your <code>.gb</code></p>
-            <p class="lcd-or">Game logic runs as ahead-of-time JS compiled from the ROM’s machine code. PPU draws what that code writes to VRAM.</p>
+            <p class="lcd-or">Bring your own ROM (.gb / .gbc / .zip). JP, US/EU, and Beta all work. Nothing is uploaded.</p>
             <label class="file-btn">
               Choose ROM
-              <input id="file" type="file" accept=".gb,.gbc,application/octet-stream" />
+              <input id="file" type="file" accept=".gb,.gbc,.zip,application/zip,application/octet-stream" />
             </label>
             <div id="quick" class="quick" hidden>
               <p class="quick-label">Local <code>roms/</code></p>
@@ -35,10 +39,19 @@
       </div>
 
       <div id="app" class="app" hidden>
-        <div class="lcd-bezel playing">
-          <canvas id="screen" width="160" height="144" aria-label="Game screen"></canvas>
+        <div class="play-frame">
+          <div class="lcd-bezel playing">
+            <canvas id="screen" width="160" height="144" aria-label="Game screen"></canvas>
+          </div>
+          <!-- Invisible hit zones: left / plunger / right (+ start strip). No chrome. -->
+          <div id="touch-pad" class="touch-pad" aria-hidden="true">
+            <div class="zone zone-start" data-side="start"></div>
+            <div class="zone zone-left" data-side="left"></div>
+            <div class="zone zone-plunger" data-side="plunger"></div>
+            <div class="zone zone-right" data-side="right"></div>
+          </div>
         </div>
-        <div class="toolbar">
+        <div class="toolbar desk-only">
           <p id="status" class="rom-name"></p>
           <div class="toolbar-actions">
             <button type="button" id="mode-menu" class="ghost">Half speed</button>
@@ -49,24 +62,22 @@
       </div>
     </main>
 
-    <aside class="panel">
+    <aside class="panel desk-only">
       <section>
-        <h2>How this is 1:1</h2>
+        <h2>Runtime</h2>
         <p class="body">
-          <code>scripts/recompile_to_js.py</code> flow-traces from entry points (not a blind
-          linear pass), so data isn’t executed as code. Each op returns M-cycles; the host
-          runs ~70224 T-cycles per display frame with DIV, TIMA, LY/STAT, and interrupts.
-          Rare AOT holes use a one-instruction decode fallback.
+          Fetch → decode → execute each instruction from the loaded ROM in the browser.
+          Timing uses DMG-ish cycles (DIV, TIMA, LY/STAT, interrupts) and a software PPU.
         </p>
       </section>
       <section>
         <h2>Controls</h2>
+        <p class="body tight">D-Pad = left · A/B = right + plunger. Mobile: invisible screen zones (L / hold-center / R; top = start).</p>
         <dl>
-          <div><dt>D-Pad</dt><dd>Arrows</dd></div>
-          <div><dt>A</dt><dd>X</dd></div>
-          <div><dt>B</dt><dd>Z</dd></div>
-          <div><dt>Start</dt><dd>Enter</dd></div>
-          <div><dt>Select</dt><dd>Shift</dd></div>
+          <div><dt>Left flipper</dt><dd>← · Left Ctrl · mouse L</dd></div>
+          <div><dt>Right flipper</dt><dd>→ · Right Ctrl · mouse R</dd></div>
+          <div><dt>Plunger</dt><dd>↓ · Space — hold, then release</dd></div>
+          <div><dt>Start / pause</dt><dd>Enter</dd></div>
         </dl>
       </section>
       <section>

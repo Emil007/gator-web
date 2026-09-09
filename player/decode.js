@@ -1,6 +1,5 @@
 /**
- * Full SM83 one-step decoder — used only when AOT table misses a PC.
- * Same architectural semantics as the recompiler templates.
+ * Full SM83 one-step decoder — primary CPU path for the dynamic runtime.
  */
 export function createDecodeStep(M) {
   const {

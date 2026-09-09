@@ -1,46 +1,40 @@
-# gator-web
+# gator
 
-**1:1 native port lab** (private): statically recompile Game Boy SM83 into JavaScript and run it with a DMG PPU — **not** EmulatorJS, **not** a fetch/decode/execute interpreter loop.
+Bring-your-own-ROM web player for *Pinball: Revenge of the 'Gator* / *66匹のワニ大行進* (Game Boy).
 
-You supply a `.gb` you own. The ROM bytes are the program + assets; git never stores dumps.
+**This repo does not include any commercial ROM.** You must supply a dump you are allowed to use. The browser loads it locally; nothing is uploaded.
 
-## Idea
-
-| Layer | Role |
-|-------|------|
-| `scripts/recompile_to_js.py` | Ahead-of-time: each instruction in banks 0–2 → JS with identical register/memory semantics |
-| `player/generated/recompiled.js` | Generated step table (~33k ops) |
-| `player/machine.js` | Registers, MBC1 bank select, WRAM/VRAM/OAM/IO |
-| `player/ppu.js` | Renders 160×144 from VRAM/OAM the **game code** fills |
-| Your ROM | Loaded at runtime only |
-
-See [`docs/NATIVE_PORT.md`](docs/NATIVE_PORT.md).
-
-## Run
+## Play
 
 ```powershell
-# optional: regenerate JS from your US retail ROM in roms/
-python scripts\recompile_to_js.py
-
 powershell -ExecutionPolicy Bypass -File scripts\serve_player.ps1
 ```
 
-Open http://127.0.0.1:8765/player/
+Open http://127.0.0.1:8765/player/ and pick a `.gb`, `.gbc`, or `.zip` that contains one.
 
-Controls: Arrows, X=A, Z=B, Enter=Start, Shift=Select. Toolbar Faster/Slower adjusts how many recompiled ops run per animation frame (timing still approximate).
+Supported dumps (same engine path for all):
 
-## Fidelity status
+| Variant | Typical file |
+|---------|----------------|
+| Japan | `Pinball - 66hiki no Wani Daikoushin! (Japan).gb` |
+| US / Europe | `Pinball - Revenge of the 'Gator (USA, Europe).gb` |
+| Beta | `Pinball - Revenge of the 'Gator (USA, Europe) (Beta).gb` |
 
-- **Instruction semantics:** 1:1 for recompiled ops (flags, banks, stack, HRAM).
-- **Coverage:** banks 0–2 recompiled; bank 3 consumed as data via `rd`.
-- **Timing / APU / serial:** not cycle-accurate yet — enough LY ticking to escape busy-waits; sound TBD.
-- **Goal:** keep replacing approximate host glue until behavior matches a reference emulator frame-for-frame.
+Optional: drop files in local `roms/` (gitignored) for quick-load buttons when serving from the repo.
+
+## Controls
+
+- **← / →** left / right flipper · **Space or ↓** plunger (hold, then release) · **Enter** start/pause  
+- **Mobile:** invisible zones — left / center (plunger) / right · top strip = start · triple-tap top = eject  
+
+## What this is
+
+A small dynamic SM83 runtime + PPU in the browser. It is not Nintendo’s emulator, not EmulatorJS, and not a redistributed game.
 
 ## Layout
 
 ```
-player/                 runtime + UI
-player/generated/       recompiled.js (generated)
-scripts/recompile_to_js.py
-docs/
+player/     web UI + CPU/PPU/input
+scripts/    local serve helper
+roms/       your dumps only (gitignored)
 ```

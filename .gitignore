@@ -2,6 +2,9 @@
 roms/*
 !roms/README.md
 
+# AOT recompile blob embeds game code — keep local / private only
+player/generated/
+
 # Local matching disassembly / rgbds tooling (optional)
 disassembly/
 disassembly-jp/
@@ -13,6 +16,8 @@ scripts/disassemble_all.py
 scripts/build.ps1
 scripts/setup_tools.ps1
 scripts/hunt_physics.py
+scripts/recompile_to_js.py
+scripts/boot_check.py
 analyze_roms.py
 
 # Editor / junk
@@ -26,6 +31,7 @@ __pycache__/
 *.map
 *.gb
 *.gbc
+*.zip
 
 # scratch analysis (local only)
 decode_out.txt
@@ -33,4 +39,4 @@ decode_text.py
 map_systems.py
 re_deep.py
 re_deep_out.txt
-analyze_roms.py
+docs/RE.md

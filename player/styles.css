@@ -164,6 +164,21 @@ body {
   image-rendering: crisp-edges;
   background: #0f380f;
   border-radius: 8px;
+  touch-action: none;
+  user-select: none;
+}
+
+.play-frame {
+  position: relative;
+}
+
+.touch-pad {
+  display: none;
+}
+
+.panel .body.tight {
+  margin-bottom: 0.65rem;
+  font-size: 0.85rem;
 }
 
 .toolbar {
@@ -280,3 +295,126 @@ body {
     padding-top: 1.25rem;
   }
 }
+
+/* —— Mobile / touch play: fullscreen, invisible zones —— */
+body.is-playing.touch-ui {
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #000;
+  min-height: 100dvh;
+  height: 100dvh;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body.is-playing.touch-ui .shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  gap: 0;
+}
+
+body.is-playing.touch-ui .brand,
+body.is-playing.touch-ui .desk-only,
+body.is-playing.touch-ui .boot {
+  display: none !important;
+}
+
+body.is-playing.touch-ui .stage {
+  background: #000;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.is-playing.touch-ui .app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.is-playing.touch-ui .play-frame {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.is-playing.touch-ui .lcd-bezel.playing {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  width: min(100vw, calc(100dvh * 160 / 144));
+  max-height: 100dvh;
+}
+
+body.is-playing.touch-ui #screen {
+  width: 100%;
+  height: auto;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
+body.is-playing.touch-ui .touch-pad {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  touch-action: none;
+  /* invisible — zones only exist for hit-testing */
+}
+
+body.is-playing.touch-ui .zone {
+  position: absolute;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.is-playing.touch-ui .zone-start {
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: max(12%, 48px);
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+body.is-playing.touch-ui .zone-left {
+  left: 0;
+  top: 12%;
+  bottom: 0;
+  width: 38%;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+body.is-playing.touch-ui .zone-right {
+  right: 0;
+  top: 12%;
+  bottom: 0;
+  width: 38%;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+body.is-playing.touch-ui .zone-plunger {
+  left: 38%;
+  right: 38%;
+  top: 45%;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Optional: flash `?touchdebug=1` to see zones */
+body.touch-debug .zone-left { background: rgba(0, 120, 255, 0.12); }
+body.touch-debug .zone-right { background: rgba(255, 60, 60, 0.12); }
+body.touch-debug .zone-plunger { background: rgba(255, 160, 0, 0.12); }
+body.touch-debug .zone-start { background: rgba(255, 255, 255, 0.08); }

@@ -1,7 +1,8 @@
-import { loadRomFromFile, loadRomFromUrl } from "./rom.js";
+import { loadRomFromUrl, loadRomBytes } from "./rom.js";
 import { createMachine, CYCLES_PER_FRAME } from "./machine.js";
 import { renderFrame } from "./ppu.js";
-import { bindRecompiled } from "./generated/recompiled.js";
+import { createCpu } from "./cpu.js";
+import { createPinballInput } from "./input_pinball.js";
 
 const VARIANTS = [
   {
@@ -28,26 +29,26 @@ const ctx = canvas.getContext("2d");
 const frameBuf = ctx.createImageData(160, 144);
 const quick = document.getElementById("quick");
 const quickButtons = document.getElementById("quick-buttons");
+const touchPad = document.getElementById("touch-pad");
 
 let machine = null;
 let cpu = null;
 let raf = 0;
 let speed = 1;
 let frames = 0;
-let lastLog = "";
 
-const keys = new Set();
-window.addEventListener("keydown", (e) => {
-  keys.add(e.key.toLowerCase());
-  if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "enter"].includes(e.key.toLowerCase())) {
-    e.preventDefault();
-  }
-});
-window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+const input = createPinballInput(null);
+
+function isTouchUi() {
+  // Prefer real touch phones/tablets; don't trip on Windows laptops with a touchscreen.
+  return (
+    matchMedia("(hover: none) and (pointer: coarse)").matches ||
+    (matchMedia("(max-width: 820px)").matches && navigator.maxTouchPoints > 0)
+  );
+}
 
 function log(msg) {
-  lastLog = String(msg);
-  logEl.textContent = lastLog;
+  if (logEl) logEl.textContent = String(msg);
 }
 
 function romBase() {
@@ -79,18 +80,71 @@ async function probeQuick() {
   }
 }
 
-function pollInput() {
-  if (!machine) return;
-  machine.setJoypad({
-    left: keys.has("arrowleft"),
-    right: keys.has("arrowright"),
-    up: keys.has("arrowup"),
-    down: keys.has("arrowdown"),
-    a: keys.has("x") || keys.has("a"),
-    b: keys.has("z") || keys.has("s") || keys.has("b"),
-    start: keys.has("enter"),
-    select: keys.has("shift"),
-  });
+function bindTouchPad() {
+  if (!touchPad) return;
+  const active = new Map(); // pointerId -> side
+
+  const down = (e) => {
+    const zone = e.target.closest?.("[data-side]");
+    if (!zone) return;
+    e.preventDefault();
+    const side = zone.dataset.side;
+    active.set(e.pointerId, side);
+    input.held[side] = true;
+    input.sync();
+    try {
+      zone.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const up = (e) => {
+    const side = active.get(e.pointerId);
+    if (!side) return;
+    e.preventDefault();
+    active.delete(e.pointerId);
+    let still = false;
+    for (const s of active.values()) if (s === side) still = true;
+    if (!still) {
+      input.held[side] = false;
+      input.sync();
+    }
+  };
+
+  touchPad.addEventListener("pointerdown", down);
+  touchPad.addEventListener("pointerup", up);
+  touchPad.addEventListener("pointercancel", up);
+  touchPad.addEventListener("lostpointercapture", up);
+}
+
+async function enterPlayChrome() {
+  document.body.classList.add("is-playing");
+  if (isTouchUi()) {
+    document.body.classList.add("touch-ui");
+    if (new URLSearchParams(location.search).has("touchdebug")) {
+      document.body.classList.add("touch-debug");
+    }
+    const root = document.documentElement;
+    try {
+      if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: "hide" });
+      else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+    } catch {
+      /* iOS / denied — CSS fullscreen still applies */
+    }
+    try {
+      await screen.orientation?.lock?.("portrait");
+    } catch {
+      /* optional */
+    }
+  }
+}
+
+function leavePlayChrome() {
+  document.body.classList.remove("is-playing", "touch-ui", "touch-debug");
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => {});
+  }
 }
 
 function runFrameCycles() {
@@ -124,17 +178,17 @@ function runFrameCycles() {
 function frame() {
   if (!machine || !cpu) return;
   try {
-    pollInput();
+    input.sync();
     const { cycles, steps } = runFrameCycles();
     renderFrame(machine, frameBuf);
     ctx.putImageData(frameBuf, 0, 0);
     frames++;
-    if ((frames & 0x0f) === 0) {
+    if ((frames & 0x0f) === 0 && status) {
       const lcdc = machine.io[0x40];
       status.textContent =
-        `${status.dataset.name} · pc=$${machine.r.pc.toString(16).padStart(4, "0")}` +
+        `${status.dataset.name} · dynamic · pc=$${machine.r.pc.toString(16).padStart(4, "0")}` +
         ` bank=${machine.getRomBank()} ly=${machine.getLY()} lcdc=$${lcdc.toString(16)}` +
-        ` · ${steps}ops/${cycles}t · x${speed}`;
+        ` · ${steps}/${cycles}t · x${speed}`;
     }
   } catch (err) {
     log(`RUNTIME ERROR at pc=$${machine?.r?.pc?.toString(16)}\n${err?.stack || err}`);
@@ -147,8 +201,11 @@ function frame() {
 function showApp(name) {
   boot.hidden = true;
   app.hidden = false;
-  status.textContent = name;
-  status.dataset.name = name;
+  if (status) {
+    status.textContent = name;
+    status.dataset.name = name;
+  }
+  enterPlayChrome();
 }
 
 async function startRom(bytes, name) {
@@ -157,35 +214,37 @@ async function startRom(bytes, name) {
     log(`Loading ${name} (${bytes.length} bytes)…`);
     machine = createMachine(bytes);
     machine.r.pc = 0x0100;
-    cpu = bindRecompiled(machine);
+    cpu = createCpu(machine);
+    input.attachMachine(machine);
+    input.bindPointerSurface(canvas);
     log(
       `Running ${name}\n` +
-        `AOT ops: ${cpu.count}\n` +
-        `Frame: ${CYCLES_PER_FRAME} T-cycles · full decode fallback for holes\n` +
-        `If the screen stays dark, watch pc/ly/lcdc in the status line.`
+        `Left ← · Right → · Plunger hold Space/↓ · Start Enter\n` +
+        `Mobile: L / hold center / R · top strip = start`
     );
     showApp(name);
-    // paint once immediately so UI isn't blank during first heavy frames
     renderFrame(machine, frameBuf);
     ctx.putImageData(frameBuf, 0, 0);
     frame();
   } catch (err) {
     log(`BOOT ERROR\n${err?.stack || err}`);
     console.error(err);
+    leavePlayChrome();
     boot.hidden = false;
     app.hidden = true;
   }
 }
 
 async function startFromFile(file) {
-  await startRom(await loadRomFromFile(file), file.name);
+  const { bytes, name, info } = await loadRomBytes(file, file.name);
+  log(`Detected: ${info.label} · ${name} · ${bytes.length} bytes`);
+  await startRom(bytes, name);
 }
 
 async function startFromUrl(url, name) {
   try {
     log(`Fetching ${name}…`);
-    const bytes = await loadRomFromUrl(url);
-    await startRom(bytes, name);
+    await startRom(await loadRomFromUrl(url), name);
   } catch (err) {
     log(`FETCH ERROR for ${name}\n${err?.stack || err}`);
     console.error(err);
@@ -197,7 +256,10 @@ fileInput.addEventListener("change", () => {
   if (f) startFromFile(f).catch((e) => log(String(e)));
 });
 
-document.getElementById("eject").addEventListener("click", () => location.reload());
+document.getElementById("eject")?.addEventListener("click", () => {
+  leavePlayChrome();
+  location.reload();
+});
 document.getElementById("mode-menu")?.addEventListener("click", () => {
   speed = Math.max(0.25, speed / 2);
   log(`speed → ${speed}x`);
@@ -207,4 +269,21 @@ document.getElementById("mode-play")?.addEventListener("click", () => {
   log(`speed → ${speed}x`);
 });
 
+// Triple-tap top start zone quickly → eject (escape hatch on mobile)
+let startTaps = 0;
+let startTapTimer = 0;
+touchPad?.querySelector(".zone-start")?.addEventListener("pointerdown", () => {
+  startTaps++;
+  clearTimeout(startTapTimer);
+  startTapTimer = setTimeout(() => {
+    startTaps = 0;
+  }, 600);
+  if (startTaps >= 3) {
+    startTaps = 0;
+    leavePlayChrome();
+    location.reload();
+  }
+});
+
+bindTouchPad();
 probeQuick().catch((e) => console.warn(e));
